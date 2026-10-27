@@ -3,9 +3,9 @@
 Last updated: 2026-10-27. Nothing here depends on chat memory.
 
 ## 1. Goal
-Dayfold, a study planner by Karim (GitHub KarimTElshaarawy). Two codebases:
+Dayfold, a study planner (personal project of the owner). Two codebases:
 - Web app (self-hosted): /home/user/study-planner, branch claude/wizardly-davinci-derplc. Fastify 5 + better-sqlite3 + React 19 PWA, deterministic planner, daily email (Resend, else outbox/). Pushed. Definition of done met (all gates green, Opus final audit fixed).
-- Mobile app (fully on-device, iOS + Android): /home/user/dayfold-app, remote KarimTElshaarawy/dayfold-app, branch main. Capacitor 7 wrapper, no server, no email, local notifications. Built only in GitHub Actions workflow "Build apps": unsigned Dayfold.ipa (installed with Sideloadly, free Apple ID, user is on Windows ARM + WSL, no Mac) and Dayfold.apk.
+- Mobile app (fully on-device, iOS + Android): /home/user/dayfold-app, remote dayfold-app (same owner), branch main. Capacitor 7 wrapper, no server, no email, local notifications. Built only in GitHub Actions workflow "Build apps": unsigned Dayfold.ipa (installed with Sideloadly, free Apple ID, user is on Windows ARM + WSL, no Mac) and Dayfold.apk.
 Definition of done for the current phase: the newest mobile features (session reminders, bulk import of classes and topics, accent colors, native keyboard) pass all local gates, a CI build is green, and the user confirms them on the phone.
 
 ## 2. Decisions and reasons
