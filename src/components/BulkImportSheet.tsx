@@ -17,6 +17,7 @@ interface CommitmentItem {
 }
 interface TopicItem {
   course: string;
+  name?: string;
   topic: string;
 }
 interface Preview {
@@ -26,7 +27,7 @@ interface Preview {
 
 const TEMPLATES: Record<BulkMode, string> = {
   commitments: 'label,kind,days,start,end\nLectures,class,Mon;Wed,10:30,12:00\nPart-time shift,work,Tue;Thu,14:00,18:00\nGym,training,Mon;Wed;Fri,17:30,18:30\n',
-  topics: 'course,topic\nCSC230,Linked lists\nCSC230,Trees and graphs\nMTH210,Eigenvalues\n',
+  topics: 'course,name,topic\nCSC230,Data Structures,Linked lists\nCSC230,Data Structures,Trees and graphs\nMTH210,Linear Algebra,Eigenvalues\n',
 };
 
 const COPY: Record<BulkMode, { title: string; hint: string; placeholder: string }> = {
@@ -36,16 +37,16 @@ const COPY: Record<BulkMode, { title: string; hint: string; placeholder: string 
     placeholder: 'label,kind,days,start,end\nLectures,class,Mon;Wed,10:30,12:00',
   },
   topics: {
-    title: 'Import topics',
-    hint: 'One row per topic: the course code, then the topic. Courses that do not exist yet are created.',
-    placeholder: 'course,topic\nCSC230,Linked lists',
+    title: 'Import courses and topics',
+    hint: 'Columns: course code, course name (optional), topic (optional). A row with only a code and a name adds the course; each topic row adds one topic. Courses that do not exist yet are created.',
+    placeholder: 'course,name,topic\nCSC230,Data Structures,Linked lists',
   },
 };
 
 const describe = (mode: BulkMode, item: CommitmentItem | TopicItem): { title: string; sub: string } => {
   if (mode === 'topics') {
     const t = item as TopicItem;
-    return { title: t.topic, sub: t.course };
+    return { title: t.topic || t.name || t.course, sub: t.topic ? `${t.course}${t.name ? ' · ' + t.name : ''}` : `${t.course} · new course` };
   }
   const c = item as CommitmentItem;
   return { title: c.label, sub: `${c.days.map((d) => WEEKDAYS[d - 1]).join(' ')} · ${c.start} to ${c.end}` };

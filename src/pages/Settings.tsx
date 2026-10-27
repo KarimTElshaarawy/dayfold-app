@@ -334,7 +334,7 @@ export const Settings = () => {
           <h2 className="t-head">Data</h2>
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <button className="btn secondary small" onClick={() => setImpOpen(true)}>Import exams</button>
-            <button className="btn secondary small" onClick={() => setBulk('topics')}>Import topics</button>
+            <button className="btn secondary small" onClick={() => setBulk('topics')}>Import courses and topics</button>
             {b.exams.length === 0 && b.courses.length === 0 && b.commitments.length === 0 && <button className="btn secondary small" onClick={() => demo.mutate()}>Load demo data</button>}
             <button className="btn secondary small" onClick={() => setBackupOpen(true)}>Backup and restore</button>
           </div>

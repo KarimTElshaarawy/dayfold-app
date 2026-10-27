@@ -132,23 +132,35 @@ describe('commitments import', () => {
 describe('topics import', () => {
   it('parses topics with or without a header', () => {
     expect(parseTopicsCsv('course,topic\ncsc230,Linked lists\nMTH210,"Eigenvalues, vectors"').items).toEqual([
-      { course: 'CSC230', topic: 'Linked lists' },
-      { course: 'MTH210', topic: 'Eigenvalues, vectors' },
+      { course: 'CSC230', name: '', topic: 'Linked lists' },
+      { course: 'MTH210', name: '', topic: 'Eigenvalues, vectors' },
     ]);
     expect(parseTopicsCsv('CSC230,Trees\nbad').errors).toHaveLength(1);
+    const full = parseTopicsCsv('course,name,topic\nCSC230,Data Structures,Trees\nPHY150,Mechanics,');
+    expect(full.errors).toEqual([]);
+    expect(full.items.map((i) => [i.course, i.name, i.topic])).toEqual([['CSC230', 'Data Structures', 'Trees'], ['PHY150', 'Mechanics', '']]);
   });
 
   it('adds topics, creates unknown courses, skips duplicates and can replace the placeholders', async () => {
     const d = await makeDevice();
     await d.req('POST', '/api/seed/demo');
     const items = [{ course: 'CSC230', topic: 'Linked lists' }, { course: 'CSC230', topic: 'linked lists' }, { course: 'NEW100', topic: 'Basics' }];
-    expect((await d.req('POST', '/api/import/topics/commit', { items, replacePlaceholders: true })).json.created).toBe(2);
+    expect((await d.req('POST', '/api/import/topics/commit', { items, replacePlaceholders: true })).json.created).toBe(3);
     const boot = (await d.req('GET', '/api/bootstrap')).json;
     const csc = boot.courses.find((c: { code: string }) => c.code === 'CSC230');
     expect(boot.topics.filter((t: { courseId: string }) => t.courseId === csc.id).map((t: { title: string }) => t.title)).toEqual(['Linked lists']);
     expect(boot.courses.some((c: { code: string }) => c.code === 'NEW100')).toBe(true);
     // a second import of the same rows adds nothing
     expect((await d.req('POST', '/api/import/topics/commit', { items, replacePlaceholders: false })).json.created).toBe(0);
+  });
+
+  it('imports a course with its name and no topics, and names an unnamed course', async () => {
+    const d = await makeDevice();
+    const r = await d.req('POST', '/api/import/topics/commit', { items: [{ course: 'PHY150', name: 'Mechanics', topic: '' }, { course: 'PHY150', name: 'Mechanics', topic: 'Kinematics' }] });
+    expect(r.json.created).toBe(2);
+    const boot = (await d.req('GET', '/api/bootstrap')).json;
+    expect(boot.courses.find((c: { code: string }) => c.code === 'PHY150').name).toBe('Mechanics');
+    expect((await d.req('POST', '/api/import/topics/commit', { items: [{ course: 'PHY150', name: '', topic: '' }] })).status).toBe(400);
   });
 
   it('keeps the placeholders unless asked to replace them', async () => {

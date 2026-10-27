@@ -65,7 +65,7 @@ Both are in **Settings → Notifications**. Open the app every now and then so t
 ## Add your timetable quickly
 
 - **Classes, shifts and training:** Settings → Commitments → **Import**. Paste or choose a CSV (`label,kind,days,start,end`, days like `Mon;Wed` or `weekdays`, times like `10:30` or `2:30pm`), or a calendar `.ics` file: weekly repeating events become rows. **Use a template** fills in an example. The day chips in the add form (Weekdays, Mon Wed, ...) set days in one tap.
-- **Course topics:** open a course and paste several topics, one per line, or Settings → Data → **Import topics** with a CSV (`course,topic`). New topics can replace the placeholder ones.
+- **Course topics:** open a course and paste several topics, one per line, or Settings → Data → **Import courses and topics** with a CSV (`course,name,topic`). The name and the topic are each optional, so one row can add a course, a topic, or both. Unknown courses are created, and new topics can replace the placeholder ones.
 - **Exams:** Settings → Data → **Import exams** (CSV or `.ics`).
 
 ## Colors
@@ -110,7 +110,7 @@ The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes
 
 ## What is not verified
 
-The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 38 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 39 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
 
 ## License
 

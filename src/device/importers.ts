@@ -226,7 +226,7 @@ const guessCommitmentKind = (text: string): CommitmentDraft['kind'] => {
 };
 
 export const COMMITMENT_TEMPLATE = 'label,kind,days,start,end\nLectures,class,Mon;Wed,10:30,12:00\nPart-time shift,work,Tue;Thu,14:00,18:00\nGym,training,Mon;Wed;Fri,17:30,18:30\n';
-export const TOPIC_TEMPLATE = 'course,topic\nCSC230,Linked lists\nCSC230,Trees and graphs\nMTH210,Eigenvalues\n';
+export const TOPIC_TEMPLATE = 'course,name,topic\nCSC230,Data Structures,Linked lists\nCSC230,Data Structures,Trees and graphs\nMTH210,Linear Algebra,Eigenvalues\n';
 
 export const parseCommitmentsCsv = (text: string): CommitmentParse => {
   const rows = parseCsvRows(text);
@@ -308,23 +308,31 @@ export const parseCommitmentsIcs = (text: string, timezone: string): CommitmentP
 
 export interface TopicDraft {
   course: string;
+  name: string;
   topic: string;
 }
 
+/** Columns: course (required), name (optional), topic (optional when a name is given). */
 export const parseTopicsCsv = (text: string): { items: TopicDraft[]; errors: string[] } => {
   const rows = parseCsvRows(text);
   const header = (rows[0] ?? []).map((h) => h.trim().toLowerCase());
-  const hasHeader = header.includes('course') && header.includes('topic');
+  const hasHeader = header.includes('course') || header.includes('code');
   if (hasHeader) rows.shift();
-  const iCourse = hasHeader ? header.indexOf('course') : 0;
-  const iTopic = hasHeader ? header.indexOf('topic') : 1;
+  const col = (names: string[], fallback: number): number => {
+    const i = header.findIndex((h) => names.includes(h));
+    return hasHeader ? i : fallback;
+  };
+  const iCourse = col(['course', 'code'], 0);
+  const iName = hasHeader ? col(['name', 'title', 'course name'], -1) : -1;
+  const iTopic = hasHeader ? col(['topic', 'content', 'topics'], -1) : 1;
   const items: TopicDraft[] = [];
   const errors: string[] = [];
   rows.forEach((r, n) => {
-    const course = (r[iCourse] ?? '').trim().toUpperCase();
-    const topic = (r[iTopic] ?? '').trim();
-    if (!course || !topic) errors.push(`Row ${n + (hasHeader ? 2 : 1)}: needs a course code and a topic.`);
-    else items.push({ course: course.slice(0, 20), topic: topic.slice(0, 100) });
+    const course = (iCourse >= 0 ? (r[iCourse] ?? '') : '').trim().toUpperCase();
+    const name = (iName >= 0 ? (r[iName] ?? '') : '').trim();
+    const topic = (iTopic >= 0 ? (r[iTopic] ?? '') : '').trim();
+    if (!course || (!topic && !name)) errors.push(`Row ${n + (hasHeader ? 2 : 1)}: needs a course code and a name or a topic.`);
+    else items.push({ course: course.slice(0, 20), name: name.slice(0, 100), topic: topic.slice(0, 100) });
   });
   return { items, errors };
 };

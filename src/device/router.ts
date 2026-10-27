@@ -327,7 +327,10 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
         if (!Array.isArray(o.items) || o.items.length > 500) bad('items is invalid');
         const rows = (o.items as unknown[]).map((raw) => {
           const it = obj(raw);
-          return { course: str(it.course, 'course', 20).trim().toUpperCase(), topic: str(it.topic, 'topic', 100).trim() };
+          const name = typeof it.name === 'string' ? it.name.trim().slice(0, 100) : '';
+          const topic = typeof it.topic === 'string' ? it.topic.trim().slice(0, 100) : '';
+          if (!name && !topic) bad('topic is required');
+          return { course: str(it.course, 'course', 20).trim().toUpperCase(), name, topic };
         });
         const replace = o.replacePlaceholders === true;
         const created = repo.tx(() => {
@@ -335,8 +338,12 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
           const cleared = new Set<string>();
           for (const row of rows) {
             let course = repo.listCourses().find((x) => x.code === row.course);
-            if (!course) course = repo.createCourse({ code: row.course, name: '', color: repo.listCourses().length % 8 });
+            if (!course) {
+              course = repo.createCourse({ code: row.course, name: row.name, color: repo.listCourses().length % 8 });
+              n += 1;
+            } else if (row.name && !course.name) repo.updateCourse(course.id, { name: row.name });
             const courseId = course.id;
+            if (!row.topic) continue;
             if (replace && !cleared.has(courseId)) {
               cleared.add(courseId);
               for (const t of repo.listTopics()) if (t.courseId === courseId && PLACEHOLDER_TOPICS.includes(t.title)) repo.deleteTopic(t.id);
