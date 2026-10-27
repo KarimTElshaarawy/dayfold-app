@@ -53,9 +53,24 @@ Builds are signed with a fixed debug key from the repository, so a newer APK ins
 
 All data lives on the device in native storage (not the web view's browser storage, which the OS can clear). **Deleting the app deletes the data.** In **Settings → Data → Backup and restore** copy a backup now and then and paste it into Notes. Paste it back to restore.
 
-## Morning notification
+## Notifications
 
-There is no server to send email, so Dayfold schedules a notification for each of the next 14 days (for example "Tue 27 Oct: CSC230 Quiz 3 in 8 days. 4 sessions, 3 h 20 min. First at 08:00: CSC230 Lectures 1-3") on the phone itself. Open the app every now and then so the coming days are rebuilt from your latest progress. On Android the time is approximate: Android may hold a notification back while the phone is in deep sleep.
+There is no server to send email, so Dayfold schedules notifications on the phone itself:
+
+- **Morning plan** for each of the next 14 days (for example "Tue 27 Oct: CSC230 Quiz 3 in 8 days. 4 sessions, 3 h 20 min. First at 08:00: CSC230 Lectures 1-3").
+- **Session reminders**: a notification 0, 5, 10 or 15 minutes before each study session starts (default 5), for the next few days. Ticking a session off removes its reminder.
+
+Both are in **Settings → Notifications**. Open the app every now and then so the coming days are rebuilt from your latest progress. iOS keeps at most 64 pending notifications, so only the soonest sessions are scheduled. On Android the time is approximate: Android may hold a notification back while the phone is in deep sleep.
+
+## Add your timetable quickly
+
+- **Classes, shifts and training:** Settings → Commitments → **Import**. Paste or choose a CSV (`label,kind,days,start,end`, days like `Mon;Wed` or `weekdays`, times like `10:30` or `2:30pm`), or a calendar `.ics` file: weekly repeating events become rows. **Use a template** fills in an example. The day chips in the add form (Weekdays, Mon Wed, ...) set days in one tap.
+- **Course topics:** open a course and paste several topics, one per line, or Settings → Data → **Import topics** with a CSV (`course,topic`). New topics can replace the placeholder ones.
+- **Exams:** Settings → Data → **Import exams** (CSV or `.ics`).
+
+## Colors
+
+Settings → Appearance → **Accent color**: eight presets or any custom color. Dayfold adjusts the shade for light and dark mode so text stays readable. Course colors are chosen per course (open a course). The app icon and launch screen come from `assets/source.png` (see below).
 
 ## Change the name, bundle ID, version or icon
 
@@ -95,7 +110,7 @@ The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes
 
 ## What is not verified
 
-The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 20 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 38 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
 
 ## License
 
