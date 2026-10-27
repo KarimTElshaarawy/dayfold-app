@@ -63,6 +63,21 @@ describe('on-device API', () => {
     expect((await d.req('DELETE', `/api/courses/${course.id}`)).status).toBe(200);
   });
 
+  it('rejects impossible dates and far-away plan requests', async () => {
+    const d = await makeDevice();
+    const course = (await d.req('POST', '/api/courses', { code: 'BIO101', name: '', color: 0 })).json;
+    expect((await d.req('POST', '/api/exams', { courseId: course.id, title: 'x', kind: 'quiz', date: '2026-02-30', time: '10:00', durationMin: 60, weight: 1, confidence: 3 })).status).toBe(400);
+    expect((await d.req('GET', '/api/plan/9999-12-31')).status).toBe(400);
+  });
+
+  it('imports nothing when one row is invalid', async () => {
+    const d = await makeDevice();
+    const good = { course: 'BIO101', title: 'BIO101 Midterm', kind: 'midterm', date: '2026-11-05', time: '10:00', durationMin: 90, weight: 3, confidence: 3 };
+    const bad = { ...good, title: 'x'.repeat(200) };
+    expect((await d.req('POST', '/api/import/commit', { items: [good, bad] })).status).toBe(400);
+    expect((await d.req('GET', '/api/bootstrap')).json.courses).toHaveLength(0);
+  });
+
   it('imports CSV once and skips duplicates', async () => {
     const d = await makeDevice();
     const csv = 'course,title,date,time,kind\nBIO101,BIO101 Midterm,2026-11-05,2:30pm,midterm';
@@ -102,9 +117,30 @@ describe('persistence', () => {
     expect((await third.req('GET', '/api/bootstrap')).json.exams).toHaveLength(11);
   });
 
-  it('does not crash on a corrupted stored document', async () => {
-    const d = await makeDevice(memoryStore('{broken'));
+  it('parks an unreadable document instead of erasing it, and can load it back', async () => {
+    const store = memoryStore('{broken');
+    const d = await makeDevice(store);
     expect((await d.req('GET', '/api/bootstrap')).status).toBe(200);
+    expect(store.kept).toBe('{broken');
+    expect((await d.req('GET', '/api/backup/unreadable')).json.data).toBe('{broken');
+  });
+
+  it('keeps data when a backup restore is malformed, and refuses wrong shapes', async () => {
+    const d = await makeDevice();
+    await d.req('POST', '/api/seed/demo');
+    const before = (await d.req('GET', '/api/backup')).json.data as string;
+    for (const bad of ['{"v":1,"exams":null}', '{"v":1,"courses":"x"}', '{"v":2}', '[]', '{"v":1,"exams":[{"nope":1}]}']) {
+      expect((await d.req('POST', '/api/backup/restore', { data: bad })).status).toBe(400);
+    }
+    expect((await d.req('GET', '/api/backup')).json.data).toBe(before);
+    expect((await d.req('GET', '/api/bootstrap')).json.exams).toHaveLength(11);
+  });
+
+  it('survives an unreadable-but-valid-JSON document at launch', async () => {
+    const store = memoryStore('{"v":1,"exams":null}');
+    const d = await makeDevice(store);
+    expect((await d.req('GET', '/api/bootstrap')).status).toBe(200);
+    expect(store.kept).toBe('{"v":1,"exams":null}');
   });
 });
 

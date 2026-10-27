@@ -20,21 +20,23 @@ You need no Mac and no local build tools. GitHub builds both apps in the cloud:
 
 ## 2. Install on iPhone (Windows, free Apple ID)
 
-1. Install **iTunes from Apple's website** (not the Microsoft Store version) and **Sideloadly** on Windows. Sideloadly runs on Windows itself, not inside WSL.
-2. Connect the iPhone by USB, unlock it and tap **Trust**.
-3. On the iPhone turn on **Settings → Privacy & Security → Developer Mode**, then restart when asked.
-4. Open Sideloadly, drag in `Dayfold.ipa`, choose your iPhone, enter your Apple ID, press **Start**. Use an app-specific password if Apple asks.
-5. When it finishes, open **Settings → General → VPN & Device Management**, tap your Apple ID under *Developer App* and tap **Trust**.
+1. On Windows install **iTunes from Apple's website** (not the Microsoft Store version) and **Sideloadly**. Sideloadly runs on Windows itself, not inside WSL.
+2. Connect the iPhone by USB, unlock it and tap **Trust** on the phone.
+3. Open Sideloadly, drag in `Dayfold.ipa`, pick your iPhone, enter your Apple ID and press **Start**. Use an app-specific password if Apple asks.
+4. When it finishes, open **Settings → General → VPN & Device Management**, tap your Apple ID under *Developer App* and tap **Trust**.
+5. **iOS 16 and newer:** the **Developer Mode** switch only appears *after* the first sideload. Turn it on under **Settings → Privacy & Security → Developer Mode** and restart when asked. (iOS 15 has no Developer Mode and needs nothing here.)
 6. Open Dayfold. The first screens ask for your name, your wake and sleep times, notifications and your exams.
 
 A free Apple ID gives you a signature that lasts **7 days** and allows about 3 sideloaded apps at once.
+
+**Windows on ARM.** I could not verify Sideloadly on Windows on ARM. It runs as an x64 program under emulation, and it depends on Apple's iTunes drivers to see the phone. If Sideloadly does not detect your iPhone: use a direct USB port, reinstall iTunes from Apple's website, and if that still fails run the same steps once on any other Windows PC. After that, the installed app keeps working without the laptop until its 7 days run out.
 
 ### Renew the signature automatically (Sideloadly Daemon)
 
 Without this you re-install every 7 days. The Sideloadly Daemon re-signs the app in the background.
 
 1. In Sideloadly open **Advanced Options** and turn on **Automatic app refreshing** (Sideloadly Daemon) **before** pressing Start. The wording can differ slightly between versions. Install the app with it enabled.
-2. In iTunes (or Apple Devices), select the iPhone and enable **Show this iPhone when on Wi-Fi**.
+2. In iTunes select the iPhone and enable **Sync with this iPhone over Wi-Fi**.
 3. Leave the Sideloadly Daemon running. It sits in the Windows tray and should start with Windows.
 
 What it needs: the **computer on and awake**, the daemon running, and the **iPhone on the same Wi-Fi** (or plugged in by USB), unlocked now and then. If any of those are missing for more than about 7 days the app stops opening; plug the phone in and install the `.ipa` again. Your data stays as long as the app is not deleted and the bundle ID does not change.
@@ -45,7 +47,7 @@ What it needs: the **computer on and awake**, the daemon running, and the **iPho
 2. Open it. Android asks to allow installs from that app (your browser or Files): allow it once.
 3. Open Dayfold and allow notifications when asked.
 
-The APK is signed with a debug key unless you add your own (see *Optional: stable Android signing*). It installs and runs normally; to update it later, uninstall the old one first.
+The APK is signed with a debug key that the workflow keeps in a cache, so later builds normally install over the old app and keep your data. If GitHub clears that cache (after a long time without builds) the signature changes and Android refuses the update. **Before you ever uninstall, copy a backup** (Settings → Data → Backup and restore), because uninstalling deletes the data. For a permanent signature use *Optional: stable Android signing* below.
 
 ## Your data
 
@@ -53,7 +55,7 @@ All data lives on the device in native storage (not the web view's browser stora
 
 ## Morning notification
 
-There is no server to send email, so Dayfold schedules a notification for each of the next 14 days (for example "Tue 27 Oct: CSC230 Quiz 3 in 8 days. 4 sessions, 3 h 20 min. First at 08:00: CSC230 Lectures 1-3") on the phone itself. Open the app every now and then so the coming days are rebuilt from your latest progress. On Android, delivery can be a few minutes late when the phone is dozing.
+There is no server to send email, so Dayfold schedules a notification for each of the next 14 days (for example "Tue 27 Oct: CSC230 Quiz 3 in 8 days. 4 sessions, 3 h 20 min. First at 08:00: CSC230 Lectures 1-3") on the phone itself. Open the app every now and then so the coming days are rebuilt from your latest progress. On Android the time is approximate: Android may hold a notification back while the phone is in deep sleep.
 
 ## Change the name, bundle ID, version or icon
 

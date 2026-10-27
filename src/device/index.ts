@@ -24,6 +24,9 @@ const deviceTimezone = (): string => {
 /** Loads stored data and wires the on-device "server". Call once before rendering. */
 export const initDevice = async (store: DocumentStore = preferencesStore(), now: () => number = Date.now): Promise<Device> => {
   const repo = new DeviceRepo(store, deviceTimezone());
+  repo.onWriteError = (message) => {
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('dayfold:error', { detail: message }));
+  };
   await repo.load();
   const svc = new Service(repo, now);
   const notifier = createNotifier(svc, now);

@@ -92,7 +92,7 @@
   .wg-body { position: relative; margin: 12px 0 16px; }
   .wg-hour { position: absolute; left: 0; right: 0; border-top: 1px solid var(--hairline); }
   .wg-label { position: absolute; right: 8px; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; transform: translateY(-50%); }
-  .wg-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: color-mix(in srgb, var(--bar, var(--c7)) 18%, var(--surface)); border-left: 3px solid var(--bar, var(--c7)); line-height: 1.25; }
+  .wg-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: var(--surface-3); background: color-mix(in srgb, var(--bar, var(--c7)) 18%, var(--surface)); border-left: 3px solid var(--bar, var(--c7)); line-height: 1.25; }
   .wg-block.passive { background: var(--surface-3); border-left-color: var(--hairline-strong); color: var(--ink-2); font-weight: 500; }
   .wg-block.exam { background: var(--accent-soft); border-left-color: var(--accent); color: var(--accent-ink); }
   .wg-block.done { opacity: 0.55; }
@@ -106,12 +106,13 @@
 .chart text { font-family: var(--font); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .hbar { display: grid; gap: 6px; }
 .hbar-track { height: 10px; border-radius: 5px; background: var(--surface-3); overflow: hidden; }
-.hbar-plan { position: relative; height: 100%; border-radius: 5px; }
+.hbar-plan { position: relative; height: 100%; border-radius: 5px; background: var(--hairline-strong); }
+.hbar-plan { background: color-mix(in srgb, var(--bar) 24%, var(--surface-3)); }
 .hbar-fill { height: 100%; border-radius: 5px; background: var(--bar, var(--ink)); }
 .trend { width: 100%; height: auto; }
 
 /* ---------- wizard / login ---------- */
-.center-screen { min-height: 100dvh; display: grid; place-items: center; align-content: center; padding: calc(var(--sat) + var(--s6)) var(--s4) calc(var(--sab) + var(--s6)); }
+.center-screen { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; align-content: center; padding: calc(var(--sat) + var(--s6)) var(--s4) calc(var(--sab) + var(--s6)); }
 .wizard { width: 100%; max-width: 560px; display: grid; gap: var(--s6); }
 .steps { display: flex; gap: 6px; }
 .steps i { height: 4px; flex: 1; border-radius: 2px; background: var(--hairline-strong); transition: background 0.3s; }

@@ -11,14 +11,14 @@ const config: CapacitorConfig = {
   ios: {
     // the web view draws under the status bar and home indicator; the CSS handles safe areas
     contentInset: 'never',
-    scrollEnabled: false,
     limitsNavigationsToAppBoundDomains: false,
   },
   android: {
     allowMixedContent: false,
+    // Android 15 draws apps edge to edge; this adds the status and navigation bar margins to the web view
+    adjustMarginsForEdgeToEdge: 'auto',
   },
   plugins: {
-    SystemBars: { insetsHandling: 'css' },
     LocalNotifications: { smallIcon: 'ic_stat_dayfold' },
   },
 };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { syncStatusBar } from './statusBar';
 
 export const useNow = (intervalMs = 30_000): number => {
   const [now, setNow] = useState(() => Date.now());
@@ -21,6 +22,7 @@ export const applyTheme = (t: ThemePref): void => {
   const root = document.documentElement;
   if (t === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', t);
+  syncStatusBar(t);
   try {
     localStorage.setItem('dayfold-theme', t);
   } catch {

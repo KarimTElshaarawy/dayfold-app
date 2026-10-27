@@ -62,7 +62,7 @@ export const Stats = () => {
                   <div key={c.id} className="hbar">
                     <div className="row"><span className="dot" style={{ background: cvar(c.color) }} /><b className="grow">{c.code}</b><span className="t-cap num">{dur(st.doneMin)} of {dur(st.plannedMin)}</span></div>
                     <div className="hbar-track" role="img" aria-label={`${c.code}: ${dur(st.doneMin)} done of ${dur(st.plannedMin)} planned`}>
-                      <div className="hbar-plan" style={{ ['--bar' as string]: cvar(c.color), width: `${(st.plannedMin / maxMin) * 100}%`, background: 'color-mix(in srgb, var(--bar) 24%, var(--surface-3))' }}>
+                      <div className="hbar-plan" style={{ ['--bar' as string]: cvar(c.color), width: `${(st.plannedMin / maxMin) * 100}%` }}>
                         <div className="hbar-fill" style={{ ['--bar' as string]: cvar(c.color), width: st.plannedMin === 0 ? 0 : `${(st.doneMin / st.plannedMin) * 100}%` }} />
                       </div>
                     </div>

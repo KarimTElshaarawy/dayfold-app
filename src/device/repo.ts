@@ -26,28 +26,67 @@ export class DeviceRepo {
     private readonly fallbackTz: string,
   ) {}
 
+  /** Called when a write to storage fails, so the UI can tell the user. */
+  onWriteError: (message: string) => void = () => undefined;
+
+  /** True when the stored document could not be read at launch; the raw text is parked, not erased. */
+  recoveredUnreadable = false;
+
   async load(): Promise<void> {
     const raw = await this.store.read();
     if (!raw) return;
     try {
       this.doc = this.parse(raw);
     } catch {
-      // keep the unreadable document out of the way instead of crashing on every launch
+      // never destroy what we cannot read: park the raw text first, and only then start empty
+      await this.store.keepUnreadable(raw);
+      this.recoveredUnreadable = true;
       this.doc = empty();
     }
   }
 
   private parse(raw: string): Doc {
-    const d = JSON.parse(raw) as Partial<Doc>;
-    if (!d || d.v !== 1) throw new Error('Unsupported backup format');
-    return { ...empty(), ...d, v: 1 };
+    const d = JSON.parse(raw) as Partial<Doc> | null;
+    if (!d || typeof d !== 'object' || d.v !== 1) throw new Error('Unsupported backup format');
+    const list = <T,>(v: unknown): T[] => {
+      if (v === undefined) return [];
+      if (!Array.isArray(v) || v.some((x) => !x || typeof x !== 'object')) throw new Error('Unreadable list');
+      return v as T[];
+    };
+    const settings = d.settings === undefined ? {} : d.settings;
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error('Unreadable settings');
+    const doc: Doc = {
+      v: 1,
+      settings: settings as Partial<Settings>,
+      courses: list<Course>(d.courses),
+      exams: list<Exam>(d.exams),
+      topics: list<Topic>(d.topics),
+      commitments: list<Commitment>(d.commitments),
+      blocks: list<Block>(d.blocks),
+    };
+    const idOk = (xs: Array<{ id?: unknown }>): boolean => xs.every((x) => typeof x.id === 'string');
+    if (![doc.courses, doc.exams, doc.topics, doc.commitments, doc.blocks].every(idOk)) throw new Error('Unreadable records');
+    return doc;
   }
 
-  /** Serialized, ordered writes; resolves when the latest state is stored. */
+  /** Serialized, ordered writes; resolves when the latest state is stored. One retry, then the error is reported. */
   flush(): Promise<void> {
     const snapshot = JSON.stringify(this.doc);
-    this.writing = this.writing.then(() => this.store.write(snapshot)).catch(() => undefined);
+    this.writing = this.writing
+      .then(async () => {
+        try {
+          await this.store.write(snapshot);
+        } catch {
+          await this.store.write(snapshot);
+        }
+      })
+      .catch(() => this.onWriteError('Could not save your changes. Free some storage space and try again.'));
     return this.writing;
+  }
+
+  /** The most recent unreadable document that was parked at launch, if there is one. */
+  async unreadable(): Promise<string | null> {
+    return this.store.readUnreadable();
   }
 
   export(): string {

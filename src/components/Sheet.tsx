@@ -1,5 +1,6 @@
 import { AnimatePresence, m } from 'motion/react';
 import { X } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 interface Props {
@@ -33,10 +34,13 @@ export const Sheet = ({ open, title, onClose, children }: Props) => {
       }
     };
     window.addEventListener('keydown', onKey);
+    // Android hardware back closes the sheet instead of leaving the screen
+    const back = CapApp.addListener('backButton', () => onClose());
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', onKey);
+      void back.then((h) => h.remove()).catch(() => undefined);
       document.body.style.overflow = prev;
       opener?.focus?.();
     };

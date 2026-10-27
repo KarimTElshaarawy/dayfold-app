@@ -56,7 +56,10 @@ jobs:
           cache: npm
 
       - name: Resolve app config
-        run: node scripts/config.mjs github-env >> "$GITHUB_ENV"
+        run: |
+          # a v1.2.3 tag builds version 1.2.3 unless an input overrides it
+          if [[ "$GITHUB_REF" == refs/tags/v* && -z "$DAYFOLD_VERSION" ]]; then echo "DAYFOLD_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"; export DAYFOLD_VERSION="${GITHUB_REF_NAME#v}"; fi
+          node scripts/config.mjs github-env >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: npm ci
@@ -92,10 +95,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            MARKETING_VERSION="$APP_VERSION" \
-            CURRENT_PROJECT_VERSION="$APP_BUILD" \
-            IPHONEOS_DEPLOYMENT_TARGET="$IOS_MIN" \
             build
 
       - name: Package the .app into an .ipa
@@ -134,7 +133,10 @@ jobs:
           java-version: 21
 
       - name: Resolve app config
-        run: node scripts/config.mjs github-env >> "$GITHUB_ENV"
+        run: |
+          # a v1.2.3 tag builds version 1.2.3 unless an input overrides it
+          if [[ "$GITHUB_REF" == refs/tags/v* && -z "$DAYFOLD_VERSION" ]]; then echo "DAYFOLD_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"; export DAYFOLD_VERSION="${GITHUB_REF_NAME#v}"; fi
+          node scripts/config.mjs github-env >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: npm ci
@@ -163,6 +165,12 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Keep the debug signing key between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: dayfold-debug-keystore-v1
+
       - name: Decode signing key (optional)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -172,7 +180,7 @@ jobs:
             echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/dayfold.keystore" >> "$GITHUB_ENV"
             echo "SIGNED=true" >> "$GITHUB_ENV"
           else
-            echo "No signing key secret set: building a debug-signed APK (installs fine, but updates need an uninstall first)."
+                        echo "No signing key secret set: building a debug-signed APK. The debug key is cached between runs so updates install over the old app; see the README for permanent signing."
             echo "SIGNED=false" >> "$GITHUB_ENV"
           fi
 

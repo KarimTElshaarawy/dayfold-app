@@ -41,4 +41,24 @@ setArray('UIRequiredDeviceCapabilities', ['arm64']);
 setBool('ITSAppUsesNonExemptEncryption', 'false');
 
 writeFileSync(plistPath, plist);
-console.log(`Info.plist patched for ${cfg.appName} ${cfg.version} (${cfg.build})`);
+
+// Build settings live in the app target of the Xcode project (the Pods are a separate project and keep their own ids).
+const pbxPath = resolve('ios/App/App.xcodeproj/project.pbxproj');
+let pbx = readFileSync(pbxPath, 'utf8');
+const setting = (name, value) => {
+  const re = new RegExp(`${name} = [^;]+;`, 'g');
+  if (!re.test(pbx)) throw new Error(`project.pbxproj has no ${name}`);
+  pbx = pbx.replace(re, `${name} = ${value};`);
+};
+setting('MARKETING_VERSION', cfg.version);
+setting('CURRENT_PROJECT_VERSION', cfg.build);
+setting('IPHONEOS_DEPLOYMENT_TARGET', cfg.iosMinVersion);
+setting('PRODUCT_BUNDLE_IDENTIFIER', cfg.bundleId);
+writeFileSync(pbxPath, pbx);
+
+const podfilePath = resolve('ios/App/Podfile');
+if (existsSync(podfilePath)) {
+  const podfile = readFileSync(podfilePath, 'utf8').replace(/platform :ios, '[^']*'/, `platform :ios, '${cfg.iosMinVersion}'`);
+  writeFileSync(podfilePath, podfile);
+}
+console.log(`Xcode project patched for ${cfg.appName} ${cfg.version} (${cfg.build}), ${cfg.bundleId}, iOS ${cfg.iosMinVersion}+`);

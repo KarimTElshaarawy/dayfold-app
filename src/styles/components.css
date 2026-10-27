@@ -1,5 +1,5 @@
 /* ---------- shell ---------- */
-.shell { min-height: 100dvh; }
+.shell { min-height: 100vh; min-height: 100dvh; }
 .main { overflow-x: clip; padding: calc(var(--sat) + var(--s6)) calc(var(--s4) + var(--sar)) calc(var(--tabbar-h) + var(--sab) + var(--s10)) calc(var(--s4) + var(--sal)); max-width: 1120px; margin: 0 auto; }
 .sidebar { display: none; }
 .tabbar {
@@ -94,7 +94,7 @@
 .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 50; }
 .sheet-wrap { position: fixed; inset: 0; z-index: 51; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
 .sheet {
-  pointer-events: auto; width: 100%; max-width: 560px; max-height: 92dvh; overflow: auto; overscroll-behavior: contain;
+  pointer-events: auto; width: 100%; max-width: 560px; max-height: 92vh; max-height: 92dvh; overflow: auto; overscroll-behavior: contain;
   background: var(--surface); border-radius: var(--r-xl) var(--r-xl) 0 0; padding: var(--s6) var(--s6) calc(var(--s6) + var(--sab));
   box-shadow: var(--shadow-3); border: 1px solid var(--hairline);
 }
@@ -102,7 +102,7 @@
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s5); }
 @media (min-width: 720px) {
   .sheet-wrap { align-items: center; }
-  .sheet { border-radius: var(--r-xl); max-height: 86dvh; }
+  .sheet { border-radius: var(--r-xl); max-height: 86vh; max-height: 86dvh; }
   .sheet-grip { display: none; }
 }
 
@@ -115,4 +115,3 @@
 .empty p { max-width: 32ch; color: var(--ink-2); }
 .banner { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--accent-soft); color: var(--ink); font-size: 14px; }
 .banner svg { color: var(--accent-ink); flex: none; margin-top: 2px; }
-.offline-pill { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--surface-3); color: var(--ink-2); }

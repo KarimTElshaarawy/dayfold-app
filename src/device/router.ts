@@ -1,4 +1,5 @@
 import { EXAM_DEFAULTS } from '@shared/defaults';
+import { DateTime } from 'luxon';
 import { contextFromSeed, type SeedFile } from '@shared/seed';
 import { addDays, diffDays, examEndMs, examStartMs, isValidTimezone } from '@shared/time';
 import type { Commitment, Exam, Settings } from '@shared/types';
@@ -27,7 +28,7 @@ const hhmm = (v: unknown, name: string): string => {
   return v;
 };
 const isoDate = (v: unknown, name: string): string => {
-  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return bad(`${name} must be YYYY-MM-DD`);
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v) || !DateTime.fromISO(v, { zone: 'utc' }).isValid) return bad(`${name} must be a real date (YYYY-MM-DD)`);
   return v;
 };
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : bad('Invalid request body'));
@@ -44,7 +45,6 @@ const parseSettings = (raw: unknown): Partial<Settings> => {
     if (!isValidTimezone(tz)) bad('Unknown timezone');
     out.timezone = tz;
   }
-  if ('email' in b) out.email = str(b.email, 'email', 120, true);
   if ('wakeTime' in b) out.wakeTime = hhmm(b.wakeTime, 'wakeTime');
   if ('sleepTime' in b) out.sleepTime = hhmm(b.sleepTime, 'sleepTime');
   if ('sessionMin' in b) out.sessionMin = int(b.sessionMin, 'sessionMin', 20, 120);
@@ -146,7 +146,6 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
     const [, a, b] = seg;
     const ok = (json: unknown, status = 200): Reply => ({ status, json });
 
-    if (method === 'GET' && a === 'session') return ok({ authenticated: true });
     if (method === 'GET' && a === 'bootstrap') return ok(await bootstrap());
 
     if (a === 'settings' && method === 'PUT') {
@@ -248,7 +247,11 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       }
     }
 
-    if (method === 'GET' && a === 'plan' && b) return ok(svc.day(isoDate(b, 'date')));
+    if (method === 'GET' && a === 'plan' && b) {
+      const date = isoDate(b, 'date');
+      if (Math.abs(diffDays(date, svc.clock().date)) > 400) bad('date is out of range');
+      return ok(svc.day(date));
+    }
     if (method === 'POST' && a === 'plan' && b === 'replan') {
       const day = svc.replanToday();
       scheduleSync();
@@ -276,34 +279,36 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       }
       if (b === 'commit') {
         if (!Array.isArray(o.items) || o.items.length > 300) bad('items is invalid');
-        let created = 0;
-        for (const raw of o.items as unknown[]) {
+        // validate every row first so a bad row cannot leave a half-finished import behind
+        const rows = (o.items as unknown[]).map((raw) => {
           const it = obj(raw);
-          const code = str(it.course, 'course', 20).trim().toUpperCase();
-          const title = str(it.title, 'title', 100);
-          const date = isoDate(it.date, 'date');
-          const time = hhmm(it.time, 'time');
           const kind = KINDS.includes(it.kind as (typeof KINDS)[number]) ? (it.kind as Exam['kind']) : 'midterm';
-          let course = repo.listCourses().find((c) => c.code === code);
-          if (!course) {
-            course = repo.createCourse({ code, name: '', color: repo.listCourses().length % 8 });
-            seedTopics(course.id);
-          }
-          const courseId = course.id;
-          const dup = repo.listExams().some((e) => e.courseId === courseId && e.date === date && e.time === time && e.title === title);
-          if (dup) continue;
-          repo.createExam({
-            courseId,
-            title,
+          return {
+            code: str(it.course, 'course', 20).trim().toUpperCase(),
+            title: str(it.title, 'title', 100),
+            date: isoDate(it.date, 'date'),
+            time: hhmm(it.time, 'time'),
             kind,
-            date,
-            time,
             durationMin: int(it.durationMin ?? EXAM_DEFAULTS[kind].durationMin, 'durationMin', 0, 480),
             weight: int(it.weight ?? EXAM_DEFAULTS[kind].weight, 'weight', 1, 5),
             confidence: int(it.confidence ?? 3, 'confidence', 1, 5),
-          });
-          created += 1;
-        }
+          };
+        });
+        const created = repo.tx(() => {
+          let n = 0;
+          for (const row of rows) {
+            let course = repo.listCourses().find((c) => c.code === row.code);
+            if (!course) {
+              course = repo.createCourse({ code: row.code, name: '', color: repo.listCourses().length % 8 });
+              seedTopics(course.id);
+            }
+            const courseId = course.id;
+            if (repo.listExams().some((e) => e.courseId === courseId && e.date === row.date && e.time === row.time && e.title === row.title)) continue;
+            repo.createExam({ courseId, title: row.title, kind: row.kind, date: row.date, time: row.time, durationMin: row.durationMin, weight: row.weight, confidence: row.confidence });
+            n += 1;
+          }
+          return n;
+        });
         afterEdit();
         return ok({ created });
       }
@@ -335,14 +340,19 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
     }
 
     if (a === 'backup') {
+      if (method === 'GET' && b === 'unreadable') return ok({ data: await repo.unreadable() });
       if (method === 'GET') return ok({ data: repo.export() });
       if (method === 'POST' && b === 'restore') {
+        const data = str(obj(body).data, 'data', 5_000_000);
+        const previous = repo.export();
         try {
-          await repo.restore(str(obj(body).data, 'data', 5_000_000));
+          await repo.restore(data);
+          svc.replanToday();
         } catch {
-          bad('That is not a Dayfold backup.');
+          await repo.restore(previous);
+          bad('That is not a usable Dayfold backup. Nothing was changed.');
         }
-        afterEdit();
+        scheduleSync();
         return ok({ ok: true });
       }
     }

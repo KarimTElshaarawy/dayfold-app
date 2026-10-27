@@ -137,6 +137,10 @@ const BackupSheet = ({ open, onClose }: { open: boolean; onClose: () => void }) 
       }
     },
   });
+  const unreadable = useMutation({
+    mutationFn: () => api<{ data: string | null }>('GET', '/api/backup/unreadable'),
+    onSuccess: (r) => (r.data ? setText(r.data) : toast('No unreadable data was saved.')),
+  });
   const restore = useMutation({
     mutationFn: () => api('POST', '/api/backup/restore', { data: text.trim() }),
     onSuccess: () => { void qc.invalidateQueries(); toast('Restored'); onClose(); },
@@ -146,6 +150,7 @@ const BackupSheet = ({ open, onClose }: { open: boolean; onClose: () => void }) 
       <div className="stack">
         <p className="t-cap">Your data lives only on this phone. Copy a backup now and then. Deleting the app deletes the data.</p>
         <button className="btn secondary" onClick={() => exportData.mutate()} disabled={exportData.isPending}>Copy backup</button>
+        <button className="btn ghost" onClick={() => unreadable.mutate()}>Load data saved from a failed start</button>
         <textarea className="textarea" aria-label="Backup data" placeholder="Paste a backup here to restore it" value={text} onChange={(e) => setText(e.target.value)} />
         {restore.error && <div className="banner" role="alert">{restore.error.message}</div>}
         <button className="btn" disabled={!text.trim() || restore.isPending} onClick={() => restore.mutate()}>Restore from this text</button>

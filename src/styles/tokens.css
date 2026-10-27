@@ -36,11 +36,11 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tabbar-h: 64px;
   --sidebar-w: 248px;
-  /* iOS reports env(); Android edge-to-edge gets --safe-area-inset-* from Capacitor's SystemBars (insetsHandling: css) */
-  --sat: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
-  --sab: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
-  --sal: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
-  --sar: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  /* iOS: the web view draws under the bars and reports env(). Android: Capacitor adds the system bar margins itself (adjustMarginsForEdgeToEdge: auto), so these stay 0 there. */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 @media (prefers-color-scheme: dark) {
