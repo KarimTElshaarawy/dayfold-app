@@ -28,10 +28,35 @@ test('set up with demo data, tick a task, reload, then check every screen', asyn
     await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name }).click();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   }
-  await expect(page.getByText('Morning notification')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
   await expect(page.getByText('Sign out')).toHaveCount(0);
   await expect(page.getByText('Daily email')).toHaveCount(0);
   await page.getByRole('button', { name: 'Backup and restore' }).click();
   await page.getByRole('button', { name: 'Copy backup' }).click();
   await expect(page.getByLabel('Backup data')).toHaveValue(/"v":1/);
+
+  await page.keyboard.press('Escape');
+
+  // accent color: choose blue, see the CSS variable change, keep it after a reload
+  const strong = (): Promise<string> => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent-strong').trim());
+  const red = await strong();
+  await page.getByRole('button', { name: 'Blue' }).click();
+  await expect.poll(strong).not.toBe(red);
+  const blue = await strong();
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await expect.poll(strong).toBe(blue);
+
+  // session reminders: toggle and lead time are there
+  await expect(page.getByText('When a study session starts')).toBeVisible();
+  await page.getByRole('button', { name: '10 min' }).click();
+  await expect(page.getByRole('button', { name: '10 min' })).toHaveAttribute('aria-pressed', 'true');
+
+  // import a class schedule from the template
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await page.getByRole('button', { name: 'Use a template' }).click();
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.getByRole('button', { name: 'Add 3' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add 3' }).click();
+  await expect(page.getByRole('button', { name: /^Gym/ })).toBeVisible();
 });

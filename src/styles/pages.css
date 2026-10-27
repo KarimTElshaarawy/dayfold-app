@@ -149,3 +149,7 @@
   .hero-meta .meta + .meta { border-left: 0; }
   .meta b { justify-content: flex-start; }
 }
+
+.swatch.custom { position: relative; display: grid; place-items: center; cursor: pointer; background: conic-gradient(#e5322d, #e8650f, #d49a00, #2f9e5b, #0f9d9a, #2f7df6, #e0457b, #e5322d); overflow: hidden; }
+.swatch.custom input { position: absolute; inset: -6px; width: 44px; height: 44px; opacity: 0; cursor: pointer; }
+.swatch { cursor: pointer; }

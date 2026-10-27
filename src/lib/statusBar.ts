@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { applyAccent } from './accent';
 import type { ThemePref } from './hooks';
 
 const systemDark = (): boolean => !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
@@ -25,5 +26,8 @@ export const syncStatusBar = (theme: ThemePref): void => {
 
 /** Re-apply when the system appearance flips while the app is open (for example automatic dark mode at sunset). */
 export const watchSystemTheme = (getTheme: () => ThemePref): void => {
-  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => syncStatusBar(getTheme()));
+  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+    syncStatusBar(getTheme());
+    applyAccent();
+  });
 };

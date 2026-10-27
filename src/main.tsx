@@ -11,6 +11,7 @@ import { ToastProvider } from './components/Toast';
 import { getDevice, initDevice } from './device';
 import { applyTheme, getTheme } from './lib/hooks';
 import { queryClient } from './lib/query';
+import { applyAccent } from './lib/accent';
 import { syncStatusBar, watchSystemTheme } from './lib/statusBar';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -31,6 +32,7 @@ const start = async (): Promise<void> => {
     root.render(<StartupError error={error} />);
     return;
   }
+  applyAccent(getDevice().repo.getPrefs().accent);
   root.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>

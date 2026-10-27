@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { buildReminders, REMINDER_ID_BASE, TEST_NOTIFICATION_ID } from './reminders';
+import { buildReminders, buildSessionReminders, REMINDER_ID_BASE, TEST_NOTIFICATION_ID } from './reminders';
 import type { Service } from './service';
 import { APP_NAME } from '../lib/appInfo';
 
@@ -48,7 +48,8 @@ export const createNotifier = (svc: Service, now: () => number = Date.now): Noti
       if (!native || (await permission()) !== 'granted') return;
       await ensureChannel();
       await clearPending();
-      const reminders = buildReminders(svc, now());
+      const prefs = svc.repo.getPrefs();
+      const reminders = [...buildReminders(svc, now()), ...(prefs.sessionReminders ? buildSessionReminders(svc, now(), prefs.sessionLeadMin) : [])];
       if (reminders.length === 0) return;
       await LocalNotifications.schedule({
         notifications: reminders.map((r) => ({

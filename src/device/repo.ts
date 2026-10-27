@@ -2,6 +2,7 @@ import { defaultSettings } from '@shared/defaults';
 import type { Block, Commitment, Course, Exam, Settings, Topic } from '@shared/types';
 import { ApiError } from '../lib/errors';
 import { uid } from './id';
+import { defaultPrefs, readPrefs, type Prefs } from './prefs';
 import type { DocumentStore } from './storage';
 
 interface Doc {
@@ -12,9 +13,10 @@ interface Doc {
   topics: Topic[];
   commitments: Commitment[];
   blocks: Block[];
+  prefs: Prefs;
 }
 
-const empty = (): Doc => ({ v: 1, settings: {}, courses: [], exams: [], topics: [], commitments: [], blocks: [] });
+const empty = (): Doc => ({ v: 1, settings: {}, courses: [], exams: [], topics: [], commitments: [], blocks: [], prefs: defaultPrefs() });
 
 /** In-memory data model with write-through persistence. Mirrors the server's Repo so the planner service is shared. */
 export class DeviceRepo {
@@ -59,6 +61,7 @@ export class DeviceRepo {
       topics: list<Topic>(d.topics),
       commitments: list<Commitment>(d.commitments),
       blocks: list<Block>(d.blocks),
+      prefs: readPrefs((d as { prefs?: unknown }).prefs),
     };
     const s = (v: unknown): boolean => typeof v === 'string';
     const n = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
@@ -132,6 +135,16 @@ export class DeviceRepo {
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) (this.doc.settings as Record<string, unknown>)[k] = v;
     this.persist();
     return this.getSettings();
+  }
+
+  // device preferences (reminders, accent color); kept in the same document so backups carry them
+  getPrefs(): Prefs {
+    return { ...this.doc.prefs };
+  }
+  savePrefs(patch: Partial<Prefs>): Prefs {
+    this.doc.prefs = readPrefs({ ...this.doc.prefs, ...patch });
+    this.persist();
+    return this.getPrefs();
   }
 
   // courses
@@ -286,7 +299,7 @@ export class DeviceRepo {
 
   /** Remove everything the demo or a restore replaces. */
   clearAll(): void {
-    this.doc = { ...empty(), settings: this.doc.settings };
+    this.doc = { ...empty(), settings: this.doc.settings, prefs: this.doc.prefs };
     this.persist();
   }
   isEmpty(): boolean {

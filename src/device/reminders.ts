@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { addDays, diffDays, fmtMin, formatDateLong } from '@shared/time';
 import { isStudy } from '@shared/types';
+import { METHOD_LABEL } from '@shared/planner';
 import type { Service } from './service';
 
 export interface Reminder {
@@ -57,4 +58,41 @@ export const buildReminders = (svc: Service, nowMs: number, days = REMINDER_DAYS
     out.push({ id: REMINDER_ID_BASE + i, at, title, body });
   });
   return out;
+};
+
+export const SESSION_ID_BASE = 2000;
+/** morning reminders (14) + session reminders (40) stay under the 64 pending notifications iOS allows */
+export const MAX_SESSION_REMINDERS = 40;
+const SESSION_DAYS = 4;
+
+const firstSentence = (text: string | null): string => {
+  if (!text) return '';
+  const m = /^.*?[.!?](?=\s|$)/.exec(text);
+  const cut = m ? m[0] : text;
+  return cut.length > 110 ? `${cut.slice(0, 107)}...` : cut;
+};
+
+/** A notification shortly before each coming study session starts. Done sessions are skipped. */
+export const buildSessionReminders = (svc: Service, nowMs: number, leadMin: number, limit = MAX_SESSION_REMINDERS): Reminder[] => {
+  const { timezone } = svc.repo.getSettings();
+  const { date: today } = svc.clock();
+  const courses = svc.repo.listCourses();
+  const out: Array<{ at: number; title: string; body: string }> = [];
+  for (const view of svc.range(today, addDays(today, SESSION_DAYS - 1))) {
+    const dayStart = DateTime.fromISO(view.date, { zone: timezone }).startOf('day');
+    for (const b of view.blocks) {
+      if (!isStudy(b) || b.status !== 'planned') continue;
+      const startAt = dayStart.plus({ minutes: b.start }).toMillis();
+      const at = startAt - leadMin * 60_000;
+      if (!(at > nowMs + 5_000)) continue;
+      const code = b.courseId ? (courses.find((c) => c.id === b.courseId)?.code ?? '') : '';
+      const what = [code, b.topicTitle].filter(Boolean).join(' · ') || b.title;
+      const when = leadMin === 0 ? 'starts now' : `starts in ${leadMin} min`;
+      const method = b.method ? METHOD_LABEL[b.method] : 'Study';
+      const note = firstSentence(b.note);
+      out.push({ at, title: `${what} ${when}`, body: `${method}, ${dur(b.end - b.start)}.${note ? ` ${note}` : ''}` });
+    }
+  }
+  out.sort((a, b) => a.at - b.at);
+  return out.slice(0, limit).map((r, i) => ({ id: SESSION_ID_BASE + i, ...r }));
 };

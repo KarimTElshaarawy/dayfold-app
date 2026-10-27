@@ -5,7 +5,8 @@ import { addDays, diffDays, examEndMs, examStartMs, isValidTimezone } from '@sha
 import type { Commitment, Exam, Settings } from '@shared/types';
 import { ApiError } from '../lib/errors';
 import demo from './demo.json';
-import { parseCsv, parseIcs } from './importers';
+import { parseCommitmentsCsv, parseCommitmentsIcs, parseCsv, parseIcs, parseTopicsCsv } from './importers';
+import { isHexColor, LEAD_OPTIONS } from './prefs';
 import type { Notifier } from './notifications';
 import type { DeviceRepo } from './repo';
 import type { Service } from './service';
@@ -136,6 +137,7 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       commitments: repo.listCommitments(),
       clock: { ...svc.clock(), timezone: settings.timezone, nowMs: svc.now() },
       notifications: { permission: await notifier.permission() },
+      prefs: repo.getPrefs(),
       unreadable: (await repo.unreadable()) !== null,
     };
   };
@@ -144,7 +146,7 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
     const [path = '', query = ''] = rawUrl.split('?');
     const params = new URLSearchParams(query);
     const seg = path.split('/').filter(Boolean); // ['api', ...]
-    const [, a, b] = seg;
+    const [, a, b, c] = seg;
     const ok = (json: unknown, status = 200): Reply => ({ status, json });
 
     if (method === 'GET' && a === 'bootstrap') return ok(await bootstrap());
@@ -154,6 +156,23 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       const settings = repo.saveSettings(patch);
       afterEdit();
       return ok(settings);
+    }
+
+    if (a === 'prefs' && method === 'PUT') {
+      const o = obj(body);
+      const patch: { sessionReminders?: boolean; sessionLeadMin?: number; accent?: string } = {};
+      if ('sessionReminders' in o) patch.sessionReminders = o.sessionReminders === true;
+      if ('sessionLeadMin' in o) {
+        if (!(LEAD_OPTIONS as readonly unknown[]).includes(o.sessionLeadMin)) bad('sessionLeadMin must be 0, 5, 10 or 15');
+        patch.sessionLeadMin = o.sessionLeadMin as number;
+      }
+      if ('accent' in o) {
+        if (!isHexColor(o.accent)) bad('accent must be a color like #e5322d');
+        patch.accent = (o.accent as string).toLowerCase();
+      }
+      const prefs = repo.savePrefs(patch);
+      scheduleSync();
+      return ok(prefs);
     }
 
     if (a === 'courses') {
@@ -271,6 +290,67 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       return ok({ ok: true, block, day: svc.day(block.date) });
     }
     if (method === 'GET' && a === 'stats') return ok(svc.stats());
+
+    if (a === 'import' && b === 'commitments' && method === 'POST') {
+      const o = obj(body);
+      if (c === 'preview') {
+        const text = str(o.text, 'text', 500_000);
+        return ok(o.kind === 'ics' ? parseCommitmentsIcs(text, repo.getSettings().timezone) : parseCommitmentsCsv(text));
+      }
+      if (c === 'commit') {
+        if (!Array.isArray(o.items) || o.items.length > 200) bad('items is invalid');
+        const rows = (o.items as unknown[]).map((raw) => {
+          const it = obj(raw);
+          if (!CKINDS.includes(it.kind as (typeof CKINDS)[number])) bad('kind is invalid');
+          if (!Array.isArray(it.days) || it.days.length < 1 || it.days.length > 7) bad('days is invalid');
+          return { label: str(it.label, 'label', 60), kind: it.kind as Commitment['kind'], days: (it.days as unknown[]).map((d) => int(d, 'day', 1, 7)).sort(), start: hhmm(it.start, 'start'), end: hhmm(it.end, 'end') };
+        });
+        const created = repo.tx(() => {
+          let n = 0;
+          for (const row of rows) {
+            const same = repo.listCommitments().some((x) => x.label === row.label && x.start === row.start && x.end === row.end && x.days.join() === row.days.join());
+            if (same) continue;
+            repo.createCommitment(row);
+            n += 1;
+          }
+          return n;
+        });
+        afterEdit();
+        return ok({ created });
+      }
+    }
+
+    if (a === 'import' && b === 'topics' && method === 'POST') {
+      const o = obj(body);
+      if (c === 'preview') return ok(parseTopicsCsv(str(o.text, 'text', 500_000)));
+      if (c === 'commit') {
+        if (!Array.isArray(o.items) || o.items.length > 500) bad('items is invalid');
+        const rows = (o.items as unknown[]).map((raw) => {
+          const it = obj(raw);
+          return { course: str(it.course, 'course', 20).trim().toUpperCase(), topic: str(it.topic, 'topic', 100).trim() };
+        });
+        const replace = o.replacePlaceholders === true;
+        const created = repo.tx(() => {
+          let n = 0;
+          const cleared = new Set<string>();
+          for (const row of rows) {
+            let course = repo.listCourses().find((x) => x.code === row.course);
+            if (!course) course = repo.createCourse({ code: row.course, name: '', color: repo.listCourses().length % 8 });
+            const courseId = course.id;
+            if (replace && !cleared.has(courseId)) {
+              cleared.add(courseId);
+              for (const t of repo.listTopics()) if (t.courseId === courseId && PLACEHOLDER_TOPICS.includes(t.title)) repo.deleteTopic(t.id);
+            }
+            if (repo.listTopics().some((t) => t.courseId === courseId && t.title.toLowerCase() === row.topic.toLowerCase())) continue;
+            repo.createTopic({ courseId, title: row.topic });
+            n += 1;
+          }
+          return n;
+        });
+        afterEdit();
+        return ok({ created });
+      }
+    }
 
     if (a === 'import' && method === 'POST') {
       const o = obj(body);

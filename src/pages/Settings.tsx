@@ -9,6 +9,8 @@ import { api } from '../lib/api';
 import { WEEKDAYS } from '../lib/format';
 import { applyTheme, getTheme, type ThemePref } from '../lib/hooks';
 import { useBoot } from '../lib/query';
+import { ACCENT_PRESETS, accentVars, applyAccent } from '../lib/accent';
+import { BulkImportSheet, type BulkMode } from '../components/BulkImportSheet';
 import type { Boot, Commitment, Course, Settings as S } from '../lib/types';
 import { APP_NAME } from '../lib/appInfo';
 
@@ -52,6 +54,11 @@ const CommitmentSheet = ({ item, open, onClose }: { item: Commitment | null; ope
         <TextField label="Name" value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="Lectures, shift, training" />
         <Field label="Type"><Seg label="Type" value={d.kind} onChange={(kind) => setD({ ...d, kind })} options={[['class', 'Class'], ['work', 'Work'], ['training', 'Training'], ['other', 'Other']]} /></Field>
         <Field label="Days">
+          <div className="chips" style={{ marginBottom: 8 }}>
+            {([['Weekdays', [1, 2, 3, 4, 5]], ['Mon Wed', [1, 3]], ['Tue Thu', [2, 4]], ['Mon Wed Fri', [1, 3, 5]], ['Every day', [1, 2, 3, 4, 5, 6, 7]]] as Array<[string, number[]]>).map(([name, days]) => (
+              <button type="button" key={name} className="chip" aria-pressed={d.days.join() === days.join()} onClick={() => setD({ ...d, days })}>{name}</button>
+            ))}
+          </div>
           <div className="day-toggle">
             {WEEKDAYS.map((w, i) => (
               <button type="button" key={w} aria-pressed={d.days.includes(i + 1)} aria-label={w} onClick={() => setD({ ...d, days: d.days.includes(i + 1) ? d.days.filter((x) => x !== i + 1) : [...d.days, i + 1].sort() })}>{w[0]}</button>
@@ -78,10 +85,15 @@ const CourseSheet = ({ boot, course, open, onClose }: { boot: Boot; course: Cour
   useEffect(() => { if (course) setD({ code: course.code, name: course.name, color: course.color }); }, [course]);
   const topics = boot.topics.filter((t) => t.courseId === course?.id);
   const [newTopic, setNewTopic] = useState('');
+  const [bulkTopics, setBulkTopics] = useState('');
   const refresh = (): void => void qc.invalidateQueries();
   const save = useMutation({ mutationFn: () => api('PUT', `/api/courses/${course?.id}`, { ...d, code: d.code.trim().toUpperCase() }), onSuccess: () => { refresh(); onClose(); } });
   const del = useMutation({ mutationFn: () => api('DELETE', `/api/courses/${course?.id}`), onSuccess: () => { refresh(); onClose(); } });
   const addTopic = useMutation({ mutationFn: () => api('POST', '/api/topics', { courseId: course?.id, title: newTopic.trim() }), onSuccess: () => { setNewTopic(''); refresh(); } });
+  const addMany = useMutation({
+    mutationFn: () => api('POST', '/api/import/topics/commit', { items: bulkTopics.split('\n').map((t) => t.trim()).filter(Boolean).map((topic) => ({ course: course?.code ?? '', topic })), replacePlaceholders: false }),
+    onSuccess: () => { setBulkTopics(''); refresh(); },
+  });
   const rename = useMutation({ mutationFn: ({ id, title }: { id: string; title: string }) => api('PUT', `/api/topics/${id}`, { title }), onSuccess: refresh });
   const rm = useMutation({ mutationFn: (id: string) => api('DELETE', `/api/topics/${id}`), onSuccess: refresh });
   return (
@@ -108,7 +120,10 @@ const CourseSheet = ({ boot, course, open, onClose }: { boot: Boot; course: Cour
               </div>
             ))}
           </div>
-          <form className="row" style={{ marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); if (newTopic.trim()) addTopic.mutate(); }}>
+          <div className="t-cap" style={{ margin: '12px 0 6px' }}>Add several at once, one per line</div>
+          <textarea className="textarea" style={{ minHeight: 88 }} aria-label="Several topics, one per line" placeholder={'Linked lists\nTrees and graphs\nSorting'} value={bulkTopics} onChange={(e) => setBulkTopics(e.target.value)} />
+          <button className="btn secondary small" style={{ marginTop: 8 }} disabled={!bulkTopics.trim() || addMany.isPending} onClick={() => addMany.mutate()}>Add these topics</button>
+          <form className="row" style={{ marginTop: 12 }} onSubmit={(e) => { e.preventDefault(); if (newTopic.trim()) addTopic.mutate(); }}>
             <input className="input grow" style={{ height: 40 }} placeholder="Add a topic" aria-label="New topic" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} />
             <button className="btn secondary small" disabled={!newTopic.trim()}>Add</button>
           </form>
@@ -183,7 +198,16 @@ export const Settings = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [impOpen, setImpOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [bulk, setBulk] = useState<BulkMode | null>(null);
   const tzList = useRef(zones()).current;
+  const prefsMut = useMutation({
+    mutationFn: (patch: Partial<{ sessionReminders: boolean; sessionLeadMin: number; accent: string }>) => api('PUT', '/api/prefs', patch),
+    onSuccess: () => void qc.invalidateQueries(),
+  });
+  const pickAccent = (hex: string): void => {
+    applyAccent(hex);
+    prefsMut.mutate({ accent: hex });
+  };
   const allow = useMutation({
     mutationFn: () => api<{ permission: string }>('POST', '/api/notifications/permission'),
     onSuccess: (r) => { void qc.invalidateQueries(); toast(r.permission === 'granted' ? 'Notifications are on' : 'Notifications are off. Enable them in iPhone or Android Settings.'); },
@@ -214,6 +238,20 @@ export const Settings = () => {
               </select>
             </Field>
             <Field label="Appearance"><Seg label="Appearance" value={theme} onChange={(t) => { setTheme(t); applyTheme(t); }} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} /></Field>
+            <Field label="Accent color">
+              <div className="color-swatches" role="group" aria-label="Accent color">
+                {ACCENT_PRESETS.map((p) => (
+                  <button key={p.id} className="swatch" style={{ background: p.hex }} aria-pressed={b.prefs.accent === p.hex} aria-label={p.name} onClick={() => pickAccent(p.hex)} />
+                ))}
+                <label className="swatch custom" aria-label="Custom color" title="Custom color" style={ACCENT_PRESETS.some((p) => p.hex === b.prefs.accent) ? undefined : { background: b.prefs.accent, boxShadow: '0 0 0 2px var(--ink)' }}>
+                  <input type="color" value={b.prefs.accent} onChange={(e) => pickAccent(e.target.value)} />
+                </label>
+              </div>
+              <div className="row" style={{ marginTop: 10, gap: 8 }}>
+                <span className="pill" style={{ background: accentVars(b.prefs.accent, false)['--accent-soft'], color: accentVars(b.prefs.accent, false)['--accent-ink'] }}>Preview</span>
+                <button className="btn small" style={{ background: accentVars(b.prefs.accent, false)['--accent-strong'] }} tabIndex={-1} aria-hidden="true">Button</button>
+              </div>
+            </Field>
           </section>
           <section className="card stack">
             <h2 className="t-head">Your day</h2>
@@ -229,8 +267,8 @@ export const Settings = () => {
         </div>
 
         <section className="card">
-          <div className="row"><h2 className="t-head grow">Commitments</h2><button className="btn secondary small" onClick={() => { setCommitment(null); setCOpen(true); }}><Plus size={16} /> Add</button></div>
-          {b.commitments.length === 0 ? <p className="t-cap" style={{ marginTop: 8 }}>Classes, shifts and training that {APP_NAME} plans around.</p> : (
+          <div className="row"><h2 className="t-head grow">Commitments</h2><button className="btn ghost small" onClick={() => setBulk('commitments')}>Import</button><button className="btn secondary small" onClick={() => { setCommitment(null); setCOpen(true); }}><Plus size={16} /> Add</button></div>
+          {b.commitments.length === 0 ? <p className="t-cap" style={{ marginTop: 8 }}>Classes, shifts and training that {APP_NAME} plans around. Add them one by one, or tap Import to paste a whole timetable from a CSV or calendar file.</p> : (
             <div className="list" style={{ marginTop: 8 }}>
               {b.commitments.map((c) => (
                 <button key={c.id} className="list-row link" style={{ textAlign: 'left' }} onClick={() => { setCommitment(c); setCOpen(true); }}>
@@ -270,16 +308,22 @@ export const Settings = () => {
         </section>
 
         <section className="card stack">
-          <h2 className="t-head">Morning notification</h2>
-          <div className="row"><span className="grow">Send every morning</span><Switch label="Morning notification" checked={s.emailEnabled} onChange={(v) => save({ emailEnabled: v })} /></div>
-          <TimeField label="Arrives at" value={s.emailTime} onChange={(v) => save({ emailTime: v })} />
+          <h2 className="t-head">Notifications</h2>
+          <div className="row"><span className="grow">Morning plan</span><Switch label="Morning plan notification" checked={s.emailEnabled} onChange={(v) => save({ emailEnabled: v })} /></div>
+          {s.emailEnabled && <TimeField label="Morning plan arrives at" value={s.emailTime} onChange={(v) => save({ emailTime: v })} />}
+          <div className="row"><span className="grow">When a study session starts</span><Switch label="Session reminders" checked={b.prefs.sessionReminders} onChange={(v) => prefsMut.mutate({ sessionReminders: v })} /></div>
+          {b.prefs.sessionReminders && (
+            <Field label="Remind me">
+              <Seg label="Reminder lead time" value={b.prefs.sessionLeadMin} onChange={(v) => prefsMut.mutate({ sessionLeadMin: v })} options={[[0, 'At start'], [5, '5 min'], [10, '10 min'], [15, '15 min']]} />
+            </Field>
+          )}
           {b.notifications.permission === 'denied' && (
             <div className="banner" role="status"><Bell size={18} /><div>Notifications are blocked for {APP_NAME}. Turn them on in your phone&apos;s Settings.</div></div>
           )}
           {b.notifications.permission === 'unsupported' && (
             <div className="banner" role="status"><Bell size={18} /><div>Notifications work in the installed app, not in a browser.</div></div>
           )}
-          <p className="t-cap">The plan for each coming day is scheduled on your phone, so it arrives even when the app is closed. Open {APP_NAME} now and then so it stays up to date.</p>
+          <p className="t-cap">Reminders for the next few days are scheduled on your phone, so they arrive even when the app is closed. Open {APP_NAME} now and then so they stay up to date, and when you tick a session off its reminder is removed.</p>
           <div className="row" style={{ flexWrap: 'wrap' }}>
             {b.notifications.permission !== 'granted' && <button className="btn small" onClick={() => allow.mutate()} disabled={allow.isPending}>Allow notifications</button>}
             <button className="btn secondary small" onClick={() => test.mutate()} disabled={test.isPending}>Send a test</button>
@@ -289,7 +333,8 @@ export const Settings = () => {
         <section className="card stack">
           <h2 className="t-head">Data</h2>
           <div className="row" style={{ flexWrap: 'wrap' }}>
-            <button className="btn secondary small" onClick={() => setImpOpen(true)}>Import CSV or calendar</button>
+            <button className="btn secondary small" onClick={() => setImpOpen(true)}>Import exams</button>
+            <button className="btn secondary small" onClick={() => setBulk('topics')}>Import topics</button>
             {b.exams.length === 0 && b.courses.length === 0 && b.commitments.length === 0 && <button className="btn secondary small" onClick={() => demo.mutate()}>Load demo data</button>}
             <button className="btn secondary small" onClick={() => setBackupOpen(true)}>Backup and restore</button>
           </div>
@@ -299,6 +344,7 @@ export const Settings = () => {
       <CourseSheet boot={b} course={course} open={!!course} onClose={() => setCourse(null)} />
       <ImportSheet open={impOpen} onClose={() => setImpOpen(false)} />
       <BackupSheet open={backupOpen} onClose={() => setBackupOpen(false)} />
+      <BulkImportSheet mode={bulk ?? 'commitments'} open={bulk !== null} onClose={() => setBulk(null)} hasPlaceholders={b.topics.some((t) => ['Lectures 1-3', 'Lectures 4-6', 'Lectures 7-9', 'Problem sets', 'Past paper themes'].includes(t.title))} />
     </>
   );
 };

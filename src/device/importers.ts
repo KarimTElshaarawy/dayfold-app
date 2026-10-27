@@ -168,3 +168,163 @@ export const parseIcs = (text: string, timezone: string): ParseResult => {
   }
   return { items, errors };
 };
+
+// ---------- classes, shifts and training (commitments) ----------
+
+export interface CommitmentDraft {
+  label: string;
+  kind: 'class' | 'work' | 'training' | 'other';
+  /** ISO weekdays, 1 = Monday .. 7 = Sunday */
+  days: number[];
+  start: string;
+  end: string;
+}
+
+export interface CommitmentParse {
+  items: CommitmentDraft[];
+  errors: string[];
+}
+
+const DAY_NAMES: Record<string, number> = {
+  mon: 1, monday: 1, m: 1, tue: 2, tues: 2, tuesday: 2, t: 2, wed: 3, wednesday: 3, w: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4, th: 4, fri: 5, friday: 5, f: 5, sat: 6, saturday: 6, sun: 7, sunday: 7,
+};
+
+/** "Mon;Wed", "1 3 5", "Mon-Fri", "weekdays", "daily" -> ISO weekdays, or null when unreadable */
+export const parseDays = (value: string): number[] | null => {
+  const v = value.trim().toLowerCase();
+  if (v === '') return null;
+  if (v === 'daily' || v === 'everyday' || v === 'every day') return [1, 2, 3, 4, 5, 6, 7];
+  if (v === 'weekdays') return [1, 2, 3, 4, 5];
+  if (v === 'weekends' || v === 'weekend') return [6, 7];
+  const out = new Set<number>();
+  for (const part of v.split(/[;,/\s]+/).filter(Boolean)) {
+    const range = /^([a-z0-9]+)-([a-z0-9]+)$/.exec(part);
+    const toNum = (x: string): number | undefined => (/^[1-7]$/.test(x) ? Number(x) : DAY_NAMES[x]);
+    if (range) {
+      const a = toNum(range[1] as string);
+      const b = toNum(range[2] as string);
+      if (!a || !b) return null;
+      for (let d = a; ; d = (d % 7) + 1) {
+        out.add(d);
+        if (d === b) break;
+      }
+    } else {
+      const d = toNum(part);
+      if (!d) return null;
+      out.add(d);
+    }
+  }
+  return out.size > 0 ? [...out].sort((a, b) => a - b) : null;
+};
+
+const guessCommitmentKind = (text: string): CommitmentDraft['kind'] => {
+  if (/\b(work|shift|job|internship|tutor)\b/i.test(text)) return 'work';
+  if (/\b(gym|training|practice|workout|run|swim|football|sport|yoga)\b/i.test(text)) return 'training';
+  if (/\b(class|lecture|lab|seminar|tutorial|course|section|recitation)\b/i.test(text)) return 'class';
+  return 'class';
+};
+
+export const COMMITMENT_TEMPLATE = 'label,kind,days,start,end\nLectures,class,Mon;Wed,10:30,12:00\nPart-time shift,work,Tue;Thu,14:00,18:00\nGym,training,Mon;Wed;Fri,17:30,18:30\n';
+export const TOPIC_TEMPLATE = 'course,topic\nCSC230,Linked lists\nCSC230,Trees and graphs\nMTH210,Eigenvalues\n';
+
+export const parseCommitmentsCsv = (text: string): CommitmentParse => {
+  const rows = parseCsvRows(text);
+  const header = (rows[0] ?? []).map((h) => h.trim().toLowerCase());
+  const hasHeader = header.includes('label') || header.includes('days') || header.includes('start');
+  if (hasHeader) rows.shift();
+  const col = (names: string[], fallback: number): number => {
+    const i = header.findIndex((h) => names.includes(h));
+    return hasHeader ? i : fallback;
+  };
+  const iLabel = col(['label', 'name', 'title', 'class'], 0);
+  const iKind = col(['kind', 'type'], 1);
+  const iDays = col(['days', 'day'], 2);
+  const iStart = col(['start', 'from'], 3);
+  const iEnd = col(['end', 'to'], 4);
+  const items: CommitmentDraft[] = [];
+  const errors: string[] = [];
+  if (hasHeader && (iLabel < 0 || iDays < 0 || iStart < 0 || iEnd < 0)) return { items, errors: ['The first row needs the columns label, days, start and end (kind is optional).'] };
+  rows.forEach((r, n) => {
+    const line = n + (hasHeader ? 2 : 1);
+    const label = (r[iLabel] ?? '').trim();
+    const days = parseDays(r[iDays] ?? '');
+    const start = normTime(r[iStart] ?? '');
+    const end = normTime(r[iEnd] ?? '');
+    if (!label || !days || !start || !end) {
+      errors.push(`Row ${line}: needs a name, days (like Mon;Wed), a start and an end time.`);
+      return;
+    }
+    const kindText = iKind >= 0 ? (r[iKind] ?? '').trim().toLowerCase() : '';
+    const kind = (['class', 'work', 'training', 'other'] as const).find((k) => k === kindText) ?? guessCommitmentKind(`${kindText} ${label}`);
+    items.push({ label: label.slice(0, 60), kind, days, start, end });
+  });
+  return { items, errors };
+};
+
+const ICS_DAYS: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 };
+
+/** Weekly repeating events become commitments. One-off events are skipped (they are not a weekly schedule). */
+export const parseCommitmentsIcs = (text: string, timezone: string): CommitmentParse => {
+  const items: CommitmentDraft[] = [];
+  const errors: string[] = [];
+  let skipped = 0;
+  let ev: Record<string, { value: string; params: string }> | null = null;
+  for (const line of unfold(text)) {
+    if (line === 'BEGIN:VEVENT') ev = {};
+    else if (line === 'END:VEVENT' && ev) {
+      const summary = (ev.SUMMARY?.value ?? '').replace(/\\,/g, ',').replace(/\\n/g, ' ').trim();
+      const start = ev.DTSTART;
+      const end = ev.DTEND;
+      const rule = ev.RRULE?.value ?? '';
+      const byDay = /BYDAY=([A-Z,0-9-]+)/.exec(rule)?.[1];
+      if (!summary || !start || !end || !/FREQ=WEEKLY/.test(rule) || !/T/.test(start.value) || !/T/.test(end.value)) skipped += 1;
+      else {
+        const parse = (v: string, params: string): DateTime => {
+          const tzid = /TZID=([^;:]+)/.exec(params)?.[1];
+          if (v.endsWith('Z')) return DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss'Z'", { zone: 'utc' }).setZone(timezone);
+          return DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss", { zone: tzid ?? timezone }).setZone(timezone);
+        };
+        const s = parse(start.value, start.params);
+        const e = parse(end.value, end.params);
+        if (!s.isValid || !e.isValid || e <= s || e.toISODate() !== s.toISODate()) skipped += 1;
+        else {
+          const days = byDay ? byDay.split(',').map((d) => ICS_DAYS[d.replace(/^[-+]?\d+/, '')]).filter((d): d is number => !!d) : [s.weekday];
+          if (days.length === 0) skipped += 1;
+          else items.push({ label: summary.slice(0, 60), kind: guessCommitmentKind(summary), days: [...new Set(days)].sort((a, b) => a - b), start: s.toFormat('HH:mm'), end: e.toFormat('HH:mm') });
+        }
+      }
+      ev = null;
+    } else if (ev) {
+      const m = /^([A-Z-]+)((?:;[^:]*)?):(.*)$/.exec(line);
+      if (m) ev[m[1] as string] = { value: m[3] as string, params: m[2] as string };
+    }
+  }
+  if (skipped > 0) errors.push(`${skipped} event${skipped === 1 ? ' was' : 's were'} skipped because ${skipped === 1 ? 'it does' : 'they do'} not repeat weekly or cross midnight.`);
+  return { items, errors };
+};
+
+// ---------- course topics ----------
+
+export interface TopicDraft {
+  course: string;
+  topic: string;
+}
+
+export const parseTopicsCsv = (text: string): { items: TopicDraft[]; errors: string[] } => {
+  const rows = parseCsvRows(text);
+  const header = (rows[0] ?? []).map((h) => h.trim().toLowerCase());
+  const hasHeader = header.includes('course') && header.includes('topic');
+  if (hasHeader) rows.shift();
+  const iCourse = hasHeader ? header.indexOf('course') : 0;
+  const iTopic = hasHeader ? header.indexOf('topic') : 1;
+  const items: TopicDraft[] = [];
+  const errors: string[] = [];
+  rows.forEach((r, n) => {
+    const course = (r[iCourse] ?? '').trim().toUpperCase();
+    const topic = (r[iTopic] ?? '').trim();
+    if (!course || !topic) errors.push(`Row ${n + (hasHeader ? 2 : 1)}: needs a course code and a topic.`);
+    else items.push({ course: course.slice(0, 20), topic: topic.slice(0, 100) });
+  });
+  return { items, errors };
+};
