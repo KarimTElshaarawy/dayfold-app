@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { buildReminders, REMINDER_ID_BASE, TEST_NOTIFICATION_ID } from './reminders';
 import type { Service } from './service';
+import { APP_NAME } from '../lib/appInfo';
 
 export type Permission = 'granted' | 'denied' | 'prompt' | 'unsupported';
 
@@ -64,7 +65,7 @@ export const createNotifier = (svc: Service, now: () => number = Date.now): Noti
       if (!native || (await permission()) !== 'granted') return false;
       await ensureChannel();
       await LocalNotifications.schedule({
-        notifications: [{ id: TEST_NOTIFICATION_ID, title: 'Dayfold', body: 'Notifications are on. Your morning plan arrives like this.', channelId: CHANNEL, smallIcon: SMALL_ICON, schedule: { at: new Date(now() + 4_000), allowWhileIdle: true } }],
+        notifications: [{ id: TEST_NOTIFICATION_ID, title: APP_NAME, body: 'Notifications are on. Your morning plan arrives like this.', channelId: CHANNEL, smallIcon: SMALL_ICON, schedule: { at: new Date(now() + 4_000), allowWhileIdle: true } }],
       });
       return true;
     },

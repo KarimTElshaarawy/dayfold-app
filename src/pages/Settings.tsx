@@ -10,6 +10,7 @@ import { WEEKDAYS } from '../lib/format';
 import { applyTheme, getTheme, type ThemePref } from '../lib/hooks';
 import { useBoot } from '../lib/query';
 import type { Boot, Commitment, Course, Settings as S } from '../lib/types';
+import { APP_NAME } from '../lib/appInfo';
 
 export const usePatchSettings = () => {
   const qc = useQueryClient();
@@ -200,7 +201,7 @@ export const Settings = () => {
 
   return (
     <>
-      <header className="page-head"><div><div className="t-eyebrow">Dayfold</div><h1 className="t-title">Settings</h1></div></header>
+      <header className="page-head"><div><div className="t-eyebrow">{APP_NAME}</div><h1 className="t-title">Settings</h1></div></header>
       {patch.error && <div className="banner" role="alert" style={{ marginBottom: 16 }}>{patch.error.message}</div>}
       <div className="stack">
         <div className="set-cols">
@@ -229,7 +230,7 @@ export const Settings = () => {
 
         <section className="card">
           <div className="row"><h2 className="t-head grow">Commitments</h2><button className="btn secondary small" onClick={() => { setCommitment(null); setCOpen(true); }}><Plus size={16} /> Add</button></div>
-          {b.commitments.length === 0 ? <p className="t-cap" style={{ marginTop: 8 }}>Classes, shifts and training that Dayfold plans around.</p> : (
+          {b.commitments.length === 0 ? <p className="t-cap" style={{ marginTop: 8 }}>Classes, shifts and training that {APP_NAME} plans around.</p> : (
             <div className="list" style={{ marginTop: 8 }}>
               {b.commitments.map((c) => (
                 <button key={c.id} className="list-row link" style={{ textAlign: 'left' }} onClick={() => { setCommitment(c); setCOpen(true); }}>
@@ -273,12 +274,12 @@ export const Settings = () => {
           <div className="row"><span className="grow">Send every morning</span><Switch label="Morning notification" checked={s.emailEnabled} onChange={(v) => save({ emailEnabled: v })} /></div>
           <TimeField label="Arrives at" value={s.emailTime} onChange={(v) => save({ emailTime: v })} />
           {b.notifications.permission === 'denied' && (
-            <div className="banner" role="status"><Bell size={18} /><div>Notifications are blocked for Dayfold. Turn them on in your phone&apos;s Settings.</div></div>
+            <div className="banner" role="status"><Bell size={18} /><div>Notifications are blocked for {APP_NAME}. Turn them on in your phone&apos;s Settings.</div></div>
           )}
           {b.notifications.permission === 'unsupported' && (
             <div className="banner" role="status"><Bell size={18} /><div>Notifications work in the installed app, not in a browser.</div></div>
           )}
-          <p className="t-cap">The plan for each coming day is scheduled on your phone, so it arrives even when the app is closed. Open Dayfold now and then so it stays up to date.</p>
+          <p className="t-cap">The plan for each coming day is scheduled on your phone, so it arrives even when the app is closed. Open {APP_NAME} now and then so it stays up to date.</p>
           <div className="row" style={{ flexWrap: 'wrap' }}>
             {b.notifications.permission !== 'granted' && <button className="btn small" onClick={() => allow.mutate()} disabled={allow.isPending}>Allow notifications</button>}
             <button className="btn secondary small" onClick={() => test.mutate()} disabled={test.isPending}>Send a test</button>

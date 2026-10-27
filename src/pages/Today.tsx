@@ -13,6 +13,7 @@ import { countdown, dur, fmtDate } from '../lib/format';
 import { useNow } from '../lib/hooks';
 import { useBoot, useDay, useStats, useToggle } from '../lib/query';
 import type { Block, DayView } from '../lib/types';
+import { APP_NAME } from '../lib/appInfo';
 
 export const NextExam = ({ boot }: { boot: NonNullable<ReturnType<typeof useBoot>['data']> }) => {
   const now = useNow(30_000);
@@ -94,7 +95,7 @@ export const Today = () => {
       {b.unreadable && <UnreadableBanner />}
       {empty ? (
         <div className="card">
-          <Empty variant="calendar" title="No exams yet" text="Add your first exam and Dayfold plans every day up to it." action={<Link className="btn" to="/exams">Add an exam</Link>} />
+          <Empty variant="calendar" title="No exams yet" text={`Add your first exam and ${APP_NAME} plans every day up to it.`} action={<Link className="btn" to="/exams">Add an exam</Link>} />
         </div>
       ) : allDone ? (
         <div className="card">

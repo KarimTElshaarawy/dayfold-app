@@ -3,6 +3,7 @@ import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { useToast } from './Toast';
+import { APP_NAME } from '../lib/appInfo';
 
 /** Shown while data that could not be read at launch is still parked on the device. Works before setup too. */
 export const UnreadableBanner = () => {
@@ -32,7 +33,7 @@ export const UnreadableBanner = () => {
     <div className="banner" style={{ marginBottom: 16 }} role="alert">
       <TriangleAlert size={18} />
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div>Dayfold could not read your saved data and started fresh. The old data is kept on this phone.</div>
+        <div>{APP_NAME} could not read your saved data and started fresh. The old data is kept on this phone.</div>
         {text !== null && (
           <>
             <textarea className="textarea" readOnly aria-label="Saved data" value={text} style={{ marginTop: 8 }} />

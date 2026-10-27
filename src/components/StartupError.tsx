@@ -1,6 +1,7 @@
 import { Preferences } from '@capacitor/preferences';
 import { useState } from 'react';
 import { Logo } from './Logo';
+import { APP_NAME } from '../lib/appInfo';
 
 const KEYS = ['dayfold-data-v1', 'dayfold-data-unreadable'];
 
@@ -22,7 +23,7 @@ export const StartupError = ({ error }: { error: unknown }) => {
     }
   };
   const reset = async (): Promise<void> => {
-    if (!window.confirm('Delete all Dayfold data on this device? Copy it first if you want to keep it.')) return;
+    if (!window.confirm(`Delete all ${APP_NAME} data on this device? Copy it first if you want to keep it.`)) return;
     for (const key of KEYS) await Preferences.remove({ key });
     window.location.reload();
   };
@@ -30,7 +31,7 @@ export const StartupError = ({ error }: { error: unknown }) => {
     <div className="center-screen top">
       <div className="wizard">
         <Logo size={40} />
-        <h1 className="t-title">Dayfold could not start</h1>
+        <h1 className="t-title">{APP_NAME} could not start</h1>
         <p className="muted">{error instanceof Error ? error.message : 'Something went wrong while opening your data.'} Your data has not been deleted.</p>
         <button className="btn" onClick={() => window.location.reload()}>Try again</button>
         <button className="btn secondary" onClick={() => void show()}>Show my data</button>

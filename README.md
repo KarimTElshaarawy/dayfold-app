@@ -22,7 +22,7 @@ You need no Mac and no local build tools. GitHub builds both apps in the cloud:
 
 1. On Windows install **iTunes from Apple's website** (not the Microsoft Store version) and **Sideloadly**. Sideloadly runs on Windows itself, not inside WSL.
 2. Connect the iPhone by USB, unlock it and tap **Trust** on the phone.
-3. Open Sideloadly, drag in `Dayfold.ipa`, pick your iPhone, enter your Apple ID and press **Start**. Use an app-specific password if Apple asks.
+3. Open Sideloadly, drag in `Dayfold.ipa`, pick your iPhone, enter your Apple ID and press **Start**. Sideloadly asks for your normal Apple ID password; if your account has two-factor authentication, type the code Apple sends to your devices when it asks. (An app-specific password is not what it wants.)
 4. When it finishes, open **Settings → General → VPN & Device Management**, tap your Apple ID under *Developer App* and tap **Trust**.
 5. **iOS 16 and newer:** the **Developer Mode** switch only appears *after* the first sideload. Turn it on under **Settings → Privacy & Security → Developer Mode** and restart when asked. (iOS 15 has no Developer Mode and needs nothing here.)
 6. Open Dayfold. The first screens ask for your name, your wake and sleep times, notifications and your exams.
@@ -43,7 +43,7 @@ What it needs: the **computer on and awake**, the daemon running, and the **iPho
 
 ## 3. Install on Android
 
-1. Download the `.apk` onto the phone (or copy it over).
+1. Get `Dayfold.apk` onto the phone. The workflow artifact is a `.zip` (`Dayfold-android-apk`): download it on the phone (you must be signed in to GitHub there), or download it on the PC and copy it over, then open the zip in your Files app and extract `Dayfold.apk`.
 2. Open it. Android asks to allow installs from that app (your browser or Files): allow it once.
 3. Open Dayfold and allow notifications when asked.
 
@@ -95,7 +95,7 @@ The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes
 
 ## What is not verified
 
-The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 17 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 20 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
 
 ## License
 

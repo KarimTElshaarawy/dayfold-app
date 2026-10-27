@@ -10,6 +10,7 @@ import { Field, SelectField, Skeleton, TextField, TimeField } from '../component
 import { api } from '../lib/api';
 import { EXAM_KIND_LABEL, fmtDate } from '../lib/format';
 import { useBoot } from '../lib/query';
+import { APP_NAME } from '../lib/appInfo';
 
 const zoneList = (current: string): string[] => {
   try {
@@ -59,7 +60,7 @@ export const Setup = () => {
   return (
     <div className="center-screen top">
       <div className="wizard">
-        <div className="row"><Logo size={36} /><span className="t-eyebrow grow">Set up Dayfold</span><span className="t-cap num">{step + 1} / {STEPS.length}</span></div>
+        <div className="row"><Logo size={36} /><span className="t-eyebrow grow">Set up {APP_NAME}</span><span className="t-cap num">{step + 1} / {STEPS.length}</span></div>
         {b.unreadable && <UnreadableBanner />}
         <div className="steps" aria-hidden="true">{STEPS.map((s, i) => <i key={s} className={i <= step ? 'on' : ''} />)}</div>
         <AnimatePresence mode="wait">
@@ -76,7 +77,7 @@ export const Setup = () => {
             {step === 1 && (
               <>
                 <h1 className="t-display">Your day.</h1>
-                <p className="muted">Dayfold plans between these times. Classes, shifts and training can be added later in Settings.</p>
+                <p className="muted">{APP_NAME} plans between these times. Classes, shifts and training can be added later in Settings.</p>
                 <div className="form-grid">
                   <TimeField label="Wake up" value={form.wakeTime} onChange={(v) => setForm({ ...form, wakeTime: v })} />
                   <TimeField label="Sleep" value={form.sleepTime} onChange={(v) => setForm({ ...form, sleepTime: v })} />

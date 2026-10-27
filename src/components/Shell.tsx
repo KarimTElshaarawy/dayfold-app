@@ -1,6 +1,7 @@
 import { BarChart3, CalendarDays, CircleDot, GraduationCap, Settings as Cog } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
+import { APP_NAME } from '../lib/appInfo';
 
 const items = [
   { to: '/today', label: 'Today', Icon: CircleDot },
@@ -16,7 +17,7 @@ export const Shell = () => {
       <nav className="sidebar" aria-label="Main">
         <div className="brand">
           <Logo />
-          Dayfold
+          {APP_NAME}
         </div>
         {items.map(({ to, label, Icon }) => (
           <NavLink key={to} to={to} className="side-link">

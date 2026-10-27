@@ -7,6 +7,7 @@ import { countdown, EXAM_KIND_LABEL, fmtDate } from '../lib/format';
 import { useNow } from '../lib/hooks';
 import { useBoot } from '../lib/query';
 import type { ExamX } from '../lib/types';
+import { APP_NAME } from '../lib/appInfo';
 
 export const Exams = () => {
   const boot = useBoot();
@@ -58,7 +59,7 @@ export const Exams = () => {
         <button className="btn" onClick={() => edit(null)}><Plus size={18} /> Add</button>
       </header>
       {upcoming.length === 0 ? (
-        <div className="card"><Empty variant="calendar" title="No exams ahead" text="Add an exam or a deadline and Dayfold plans every day up to it." action={<button className="btn" onClick={() => edit(null)}>Add exam</button>} /></div>
+        <div className="card"><Empty variant="calendar" title="No exams ahead" text={`Add an exam or a deadline and ${APP_NAME} plans every day up to it.`} action={<button className="btn" onClick={() => edit(null)}>Add exam</button>} /></div>
       ) : (
         <div className="cd-grid">{upcoming.map(card)}</div>
       )}
