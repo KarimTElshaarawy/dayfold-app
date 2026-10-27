@@ -3,9 +3,9 @@ import { resolve } from 'node:path';
 import { loadConfig } from './config.mjs';
 
 /**
- * Applies app.config.json to the generated Xcode project (ios/ is created fresh by `cap add ios` in CI).
- * Version, build, bundle id and deployment target are passed to xcodebuild as build settings in the workflow;
- * this script fixes the Info.plist keys that Capacitor's template hard-codes.
+ * Applies app.config.json to the generated Xcode project (ios/ is created fresh by `cap add ios` in CI):
+ * the Info.plist keys that Capacitor's template hard-codes, and the app target's version, build number,
+ * bundle id and deployment target in project.pbxproj (the workflow passes no overrides to xcodebuild).
  */
 const cfg = loadConfig();
 const plistPath = resolve('ios/App/App/Info.plist');

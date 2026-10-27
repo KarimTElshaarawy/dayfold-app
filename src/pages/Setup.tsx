@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ExamSheet } from '../components/ExamSheet';
 import { ImportSheet } from '../components/ImportSheet';
 import { Logo } from '../components/Logo';
+import { UnreadableBanner } from '../components/UnreadableBanner';
 import { Field, SelectField, Skeleton, TextField, TimeField } from '../components/ui';
 import { api } from '../lib/api';
 import { EXAM_KIND_LABEL, fmtDate } from '../lib/format';
@@ -59,6 +60,7 @@ export const Setup = () => {
     <div className="center-screen top">
       <div className="wizard">
         <div className="row"><Logo size={36} /><span className="t-eyebrow grow">Set up Dayfold</span><span className="t-cap num">{step + 1} / {STEPS.length}</span></div>
+        {b.unreadable && <UnreadableBanner />}
         <div className="steps" aria-hidden="true">{STEPS.map((s, i) => <i key={s} className={i <= step ? 'on' : ''} />)}</div>
         <AnimatePresence mode="wait">
           <m.div key={step} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }} className="stack" style={{ gap: 20 }}>

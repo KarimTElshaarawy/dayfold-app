@@ -8,6 +8,7 @@ export interface DocumentStore {
   keepUnreadable(value: string): Promise<void>;
   /** The most recently parked unreadable document, if any. */
   readUnreadable(): Promise<string | null>;
+  clearUnreadable(): Promise<void>;
 }
 
 const KEY = 'dayfold-data-v1';
@@ -22,6 +23,9 @@ export const preferencesStore = (): DocumentStore => ({
     await Preferences.set({ key: KEPT_KEY, value });
   },
   readUnreadable: async () => (await Preferences.get({ key: KEPT_KEY })).value,
+  clearUnreadable: async () => {
+    await Preferences.remove({ key: KEPT_KEY });
+  },
 });
 
 export const memoryStore = (initial: string | null = null): DocumentStore & { value: string | null; kept: string | null } => {
@@ -36,6 +40,9 @@ export const memoryStore = (initial: string | null = null): DocumentStore & { va
       s.kept = v;
     },
     readUnreadable: async () => s.kept,
+    clearUnreadable: async () => {
+      s.kept = null;
+    },
   };
   return s;
 };

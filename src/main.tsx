@@ -11,7 +11,7 @@ import { ToastProvider } from './components/Toast';
 import { getDevice, initDevice } from './device';
 import { applyTheme, getTheme } from './lib/hooks';
 import { queryClient } from './lib/query';
-import { syncStatusBar } from './lib/statusBar';
+import { syncStatusBar, watchSystemTheme } from './lib/statusBar';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
@@ -19,6 +19,7 @@ import './styles/pages.css';
 
 applyTheme(getTheme());
 syncStatusBar(getTheme());
+watchSystemTheme(getTheme);
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 
@@ -49,6 +50,7 @@ const start = async (): Promise<void> => {
   void CapApp.addListener('resume', () => {
     const { svc, notifier } = getDevice();
     svc.ensureToday();
+    syncStatusBar(getTheme());
     void notifier.sync().catch(() => undefined);
     void queryClient.invalidateQueries();
   });

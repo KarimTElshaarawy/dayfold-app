@@ -123,13 +123,34 @@ describe('persistence', () => {
     expect((await d.req('GET', '/api/bootstrap')).status).toBe(200);
     expect(store.kept).toBe('{broken');
     expect((await d.req('GET', '/api/backup/unreadable')).json.data).toBe('{broken');
+    expect((await d.req('GET', '/api/bootstrap')).json.unreadable).toBe(true);
+    expect((await d.req('POST', '/api/backup/discard-unreadable')).status).toBe(200);
+    expect((await d.req('GET', '/api/bootstrap')).json.unreadable).toBe(false);
+    expect(store.kept).toBeNull();
+  });
+
+  it('rolls a restore back when the data cannot be saved', async () => {
+    const store = memoryStore();
+    const d = await makeDevice(store);
+    await d.req('POST', '/api/seed/demo');
+    await d.repo.flush();
+    const before = d.repo.export();
+    const errors: string[] = [];
+    d.repo.onWriteError = (m) => errors.push(m);
+    store.write = async () => {
+      throw new Error('disk full');
+    };
+    const empty = JSON.stringify({ v: 1, courses: [], exams: [], topics: [], commitments: [], blocks: [] });
+    expect((await d.req('POST', '/api/backup/restore', { data: empty })).status).toBe(400);
+    expect(d.repo.export()).toBe(before);
+    expect(errors.length).toBeGreaterThan(0);
   });
 
   it('keeps data when a backup restore is malformed, and refuses wrong shapes', async () => {
     const d = await makeDevice();
     await d.req('POST', '/api/seed/demo');
     const before = (await d.req('GET', '/api/backup')).json.data as string;
-    for (const bad of ['{"v":1,"exams":null}', '{"v":1,"courses":"x"}', '{"v":2}', '[]', '{"v":1,"exams":[{"nope":1}]}']) {
+    for (const bad of ['{"v":1,"exams":null}', '{"v":1,"courses":"x"}', '{"v":2}', '[]', '{"v":1,"exams":[{"nope":1}]}', '{"v":1,"exams":[{"id":"a"},{"id":"b"}]}', '{"v":1,"blocks":[{"id":"x","date":"2026-10-26"}]}']) {
       expect((await d.req('POST', '/api/backup/restore', { data: bad })).status).toBe(400);
     }
     expect((await d.req('GET', '/api/backup')).json.data).toBe(before);

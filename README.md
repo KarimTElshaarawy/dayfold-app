@@ -47,7 +47,7 @@ What it needs: the **computer on and awake**, the daemon running, and the **iPho
 2. Open it. Android asks to allow installs from that app (your browser or Files): allow it once.
 3. Open Dayfold and allow notifications when asked.
 
-The APK is signed with a debug key that the workflow keeps in a cache, so later builds normally install over the old app and keep your data. If GitHub clears that cache (after a long time without builds) the signature changes and Android refuses the update. **Before you ever uninstall, copy a backup** (Settings → Data → Backup and restore), because uninstalling deletes the data. For a permanent signature use *Optional: stable Android signing* below.
+Builds are signed with a fixed debug key from the repository, so a newer APK installs over the old one and keeps your data. **Before you ever uninstall, copy a backup** (Settings → Data → Backup and restore), because uninstalling deletes the data.
 
 ## Your data
 
@@ -71,7 +71,7 @@ The workflow also accepts **version** and **build** as inputs for a single run. 
 
 ## Optional: stable Android signing
 
-Debug-signed builds change signature on every run. To keep one identity, make a key once and add four repository secrets (Settings → Secrets and variables → Actions):
+The default build is signed with the public Android debug key stored in `native/android/debug.keystore`. It is the same on every build, so updates install over the old app, but anyone could sign an APK with it. For a private key, make one once and add four repository secrets (Settings → Secrets and variables → Actions):
 
 ```bash
 keytool -genkeypair -v -keystore dayfold.keystore -alias dayfold -keyalg RSA -keysize 2048 -validity 10000
@@ -93,7 +93,7 @@ The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes
 
 ## What is not verified
 
-The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 11 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 16 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
 
 ## License
 

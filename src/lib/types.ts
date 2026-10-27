@@ -15,6 +15,8 @@ export interface Boot {
   commitments: Commitment[];
   clock: { date: string; min: number; timezone: string; nowMs: number };
   notifications: { permission: 'granted' | 'denied' | 'prompt' | 'unsupported' };
+  /** a stored document could not be read at launch and was parked instead of erased */
+  unreadable: boolean;
 }
 
 export interface DayView {

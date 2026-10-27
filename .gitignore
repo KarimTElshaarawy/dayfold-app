@@ -18,3 +18,4 @@ coverage
 build
 test-results
 playwright-report
+!native/android/debug.keystore

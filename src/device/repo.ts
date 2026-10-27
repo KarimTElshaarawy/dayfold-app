@@ -29,9 +29,6 @@ export class DeviceRepo {
   /** Called when a write to storage fails, so the UI can tell the user. */
   onWriteError: (message: string) => void = () => undefined;
 
-  /** True when the stored document could not be read at launch; the raw text is parked, not erased. */
-  recoveredUnreadable = false;
-
   async load(): Promise<void> {
     const raw = await this.store.read();
     if (!raw) return;
@@ -40,7 +37,6 @@ export class DeviceRepo {
     } catch {
       // never destroy what we cannot read: park the raw text first, and only then start empty
       await this.store.keepUnreadable(raw);
-      this.recoveredUnreadable = true;
       this.doc = empty();
     }
   }
@@ -64,24 +60,38 @@ export class DeviceRepo {
       commitments: list<Commitment>(d.commitments),
       blocks: list<Block>(d.blocks),
     };
-    const idOk = (xs: Array<{ id?: unknown }>): boolean => xs.every((x) => typeof x.id === 'string');
-    if (![doc.courses, doc.exams, doc.topics, doc.commitments, doc.blocks].every(idOk)) throw new Error('Unreadable records');
+    const s = (v: unknown): boolean => typeof v === 'string';
+    const n = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
+    const ok =
+      doc.courses.every((c) => s(c.id) && s(c.code) && s(c.name) && n(c.color)) &&
+      doc.exams.every((e) => s(e.id) && s(e.courseId) && s(e.title) && s(e.kind) && s(e.date) && s(e.time) && n(e.durationMin) && n(e.weight) && n(e.confidence)) &&
+      doc.topics.every((t) => s(t.id) && s(t.courseId) && s(t.title)) &&
+      doc.commitments.every((c) => s(c.id) && s(c.label) && Array.isArray(c.days) && s(c.start) && s(c.end)) &&
+      doc.blocks.every((b) => s(b.id) && s(b.date) && n(b.start) && n(b.end) && s(b.kind) && s(b.status));
+    if (!ok) throw new Error('Unreadable records');
     return doc;
   }
 
-  /** Serialized, ordered writes; resolves when the latest state is stored. One retry, then the error is reported. */
+  /** Fire and forget: the error is already reported through onWriteError. */
+  private persist(): void {
+    this.flush().catch(() => undefined);
+  }
+
+  /** Serialized, ordered writes. One retry, then the error is reported and the returned promise rejects. */
   flush(): Promise<void> {
     const snapshot = JSON.stringify(this.doc);
-    this.writing = this.writing
-      .then(async () => {
-        try {
-          await this.store.write(snapshot);
-        } catch {
-          await this.store.write(snapshot);
-        }
-      })
-      .catch(() => this.onWriteError('Could not save your changes. Free some storage space and try again.'));
-    return this.writing;
+    const run = this.writing.then(async () => {
+      try {
+        await this.store.write(snapshot);
+      } catch {
+        await this.store.write(snapshot);
+      }
+    });
+    this.writing = run.catch(() => undefined);
+    return run.catch((error: unknown) => {
+      this.onWriteError('Could not save your changes. Free some storage space and try again.');
+      throw error;
+    });
   }
 
   /** The most recent unreadable document that was parked at launch, if there is one. */
@@ -93,15 +103,24 @@ export class DeviceRepo {
     return JSON.stringify(this.doc);
   }
 
-  async restore(raw: string): Promise<void> {
+  /** Replace the in-memory data with a validated document (no write). Throws before changing anything if it is unusable. */
+  setDoc(raw: string): void {
     this.doc = this.parse(raw);
+  }
+
+  async restore(raw: string): Promise<void> {
+    this.setDoc(raw);
     await this.flush();
+  }
+
+  async clearUnreadable(): Promise<void> {
+    await this.store.clearUnreadable();
   }
 
   /** Runs several changes, then stores once. */
   tx<T>(fn: () => T): T {
     const out = fn();
-    void this.flush();
+    this.persist();
     return out;
   }
 
@@ -111,7 +130,7 @@ export class DeviceRepo {
   }
   saveSettings(patch: Partial<Settings>): Settings {
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) (this.doc.settings as Record<string, unknown>)[k] = v;
-    void this.flush();
+    this.persist();
     return this.getSettings();
   }
 
@@ -126,7 +145,7 @@ export class DeviceRepo {
     if (this.doc.courses.some((x) => x.code === c.code)) throw new ApiError(409, 'That course already exists.');
     const course = { id, ...c };
     this.doc.courses.push(course);
-    void this.flush();
+    this.persist();
     return course;
   }
   updateCourse(id: string, patch: Partial<Omit<Course, 'id'>>): Course | undefined {
@@ -134,7 +153,7 @@ export class DeviceRepo {
     if (!cur) return undefined;
     if (patch.code && this.doc.courses.some((x) => x.id !== id && x.code === patch.code)) throw new ApiError(409, 'That course already exists.');
     Object.assign(cur, patch);
-    void this.flush();
+    this.persist();
     return cur;
   }
   deleteCourse(id: string): boolean {
@@ -147,7 +166,7 @@ export class DeviceRepo {
     this.doc.blocks = this.doc.blocks
       .filter((b) => !(b.status !== 'done' && (b.courseId === id || (b.examId && examIds.has(b.examId)))))
       .map((b) => (b.courseId === id ? { ...b, courseId: null, examId: null, topicId: null } : b));
-    void this.flush();
+    this.persist();
     return true;
   }
 
@@ -161,14 +180,14 @@ export class DeviceRepo {
   createExam(e: Omit<Exam, 'id'>, id: string = uid()): Exam {
     const exam = { id, ...e };
     this.doc.exams.push(exam);
-    void this.flush();
+    this.persist();
     return exam;
   }
   updateExam(id: string, patch: Partial<Omit<Exam, 'id'>>): Exam | undefined {
     const cur = this.getExam(id);
     if (!cur) return undefined;
     Object.assign(cur, patch);
-    void this.flush();
+    this.persist();
     return cur;
   }
   deleteExam(id: string): boolean {
@@ -178,7 +197,7 @@ export class DeviceRepo {
     this.doc.blocks = this.doc.blocks
       .filter((b) => !(b.examId === id && b.status !== 'done'))
       .map((b) => (b.examId === id ? { ...b, examId: null } : b));
-    void this.flush();
+    this.persist();
     return true;
   }
 
@@ -189,14 +208,14 @@ export class DeviceRepo {
   createTopic(t: Omit<Topic, 'id'>, id: string = uid()): Topic {
     const topic = { id, ...t };
     this.doc.topics.push(topic);
-    void this.flush();
+    this.persist();
     return topic;
   }
   updateTopic(id: string, title: string): boolean {
     const t = this.doc.topics.find((x) => x.id === id);
     if (!t) return false;
     t.title = title;
-    void this.flush();
+    this.persist();
     return true;
   }
   deleteTopic(id: string): boolean {
@@ -204,7 +223,7 @@ export class DeviceRepo {
     this.doc.topics = this.doc.topics.filter((t) => t.id !== id);
     if (this.doc.topics.length === before) return false;
     this.doc.blocks = this.doc.blocks.map((b) => (b.topicId === id ? { ...b, topicId: null } : b));
-    void this.flush();
+    this.persist();
     return true;
   }
 
@@ -215,20 +234,20 @@ export class DeviceRepo {
   createCommitment(c: Omit<Commitment, 'id'>, id: string = uid()): Commitment {
     const item = { id, ...c };
     this.doc.commitments.push(item);
-    void this.flush();
+    this.persist();
     return item;
   }
   updateCommitment(id: string, patch: Partial<Omit<Commitment, 'id'>>): Commitment | undefined {
     const cur = this.doc.commitments.find((c) => c.id === id);
     if (!cur) return undefined;
     Object.assign(cur, patch);
-    void this.flush();
+    this.persist();
     return cur;
   }
   deleteCommitment(id: string): boolean {
     const before = this.doc.commitments.length;
     this.doc.commitments = this.doc.commitments.filter((c) => c.id !== id);
-    void this.flush();
+    this.persist();
     return this.doc.commitments.length !== before;
   }
 
@@ -244,14 +263,14 @@ export class DeviceRepo {
   }
   replaceDay(date: string, blocks: Block[]): void {
     this.doc.blocks = [...this.doc.blocks.filter((b) => b.date !== date), ...blocks];
-    void this.flush();
+    this.persist();
   }
   setBlockStatus(id: string, status: Block['status'], doneAt: string | null): void {
     const b = this.getBlock(id);
     if (!b) return;
     b.status = status;
     b.doneAt = doneAt;
-    void this.flush();
+    this.persist();
   }
   markPastMissed(today: string): number {
     let n = 0;
@@ -261,14 +280,14 @@ export class DeviceRepo {
         n += 1;
       }
     }
-    if (n > 0) void this.flush();
+    if (n > 0) this.persist();
     return n;
   }
 
   /** Remove everything the demo or a restore replaces. */
   clearAll(): void {
     this.doc = { ...empty(), settings: this.doc.settings };
-    void this.flush();
+    this.persist();
   }
   isEmpty(): boolean {
     const d = this.doc;

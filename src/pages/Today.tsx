@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Flame, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { UnreadableBanner } from '../components/UnreadableBanner';
 import { Empty } from '../components/Empty';
 import { Ring } from '../components/Ring';
 import { Timeline } from '../components/Timeline';
@@ -90,6 +91,7 @@ export const Today = () => {
           <div>{d.warnings.map((w) => <div key={w}>{w}</div>)}</div>
         </div>
       )}
+      {b.unreadable && <UnreadableBanner />}
       {empty ? (
         <div className="card">
           <Empty variant="calendar" title="No exams yet" text="Add your first exam and Dayfold plans every day up to it." action={<Link className="btn" to="/exams">Add an exam</Link>} />

@@ -136,6 +136,7 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       commitments: repo.listCommitments(),
       clock: { ...svc.clock(), timezone: settings.timezone, nowMs: svc.now() },
       notifications: { permission: await notifier.permission() },
+      unreadable: (await repo.unreadable()) !== null,
     };
   };
 
@@ -341,6 +342,10 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
 
     if (a === 'backup') {
       if (method === 'GET' && b === 'unreadable') return ok({ data: await repo.unreadable() });
+      if (method === 'POST' && b === 'discard-unreadable') {
+        await repo.clearUnreadable();
+        return ok({ ok: true });
+      }
       if (method === 'GET') return ok({ data: repo.export() });
       if (method === 'POST' && b === 'restore') {
         const data = str(obj(body).data, 'data', 5_000_000);
@@ -349,8 +354,10 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
           await repo.restore(data);
           svc.replanToday();
         } catch {
-          await repo.restore(previous);
-          bad('That is not a usable Dayfold backup. Nothing was changed.');
+          // put the old data back in memory first, then try to store it again
+          repo.setDoc(previous);
+          await repo.flush().catch(() => undefined);
+          bad('The backup could not be used or saved. Nothing was changed.');
         }
         scheduleSync();
         return ok({ ok: true });

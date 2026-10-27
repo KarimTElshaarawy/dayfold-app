@@ -25,10 +25,6 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  DAYFOLD_VERSION: ${{ inputs.version }}
-  DAYFOLD_BUILD: ${{ inputs.build }}
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -56,9 +52,16 @@ jobs:
           cache: npm
 
       - name: Resolve app config
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_BUILD: ${{ inputs.build }}
         run: |
-          # a v1.2.3 tag builds version 1.2.3 unless an input overrides it
-          if [[ "$GITHUB_REF" == refs/tags/v* && -z "$DAYFOLD_VERSION" ]]; then echo "DAYFOLD_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"; export DAYFOLD_VERSION="${GITHUB_REF_NAME#v}"; fi
+          VERSION="$IN_VERSION"
+          BUILD="$IN_BUILD"
+          # a v1.2.3 tag builds version 1.2.3 unless the input overrides it
+          if [ -z "$VERSION" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          if [ -n "$VERSION" ]; then echo "DAYFOLD_VERSION=$VERSION" >> "$GITHUB_ENV"; export DAYFOLD_VERSION="$VERSION"; fi
+          if [ -n "$BUILD" ]; then echo "DAYFOLD_BUILD=$BUILD" >> "$GITHUB_ENV"; export DAYFOLD_BUILD="$BUILD"; fi
           node scripts/config.mjs github-env >> "$GITHUB_ENV"
 
       - name: Install dependencies
@@ -133,9 +136,16 @@ jobs:
           java-version: 21
 
       - name: Resolve app config
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_BUILD: ${{ inputs.build }}
         run: |
-          # a v1.2.3 tag builds version 1.2.3 unless an input overrides it
-          if [[ "$GITHUB_REF" == refs/tags/v* && -z "$DAYFOLD_VERSION" ]]; then echo "DAYFOLD_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"; export DAYFOLD_VERSION="${GITHUB_REF_NAME#v}"; fi
+          VERSION="$IN_VERSION"
+          BUILD="$IN_BUILD"
+          # a v1.2.3 tag builds version 1.2.3 unless the input overrides it
+          if [ -z "$VERSION" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          if [ -n "$VERSION" ]; then echo "DAYFOLD_VERSION=$VERSION" >> "$GITHUB_ENV"; export DAYFOLD_VERSION="$VERSION"; fi
+          if [ -n "$BUILD" ]; then echo "DAYFOLD_BUILD=$BUILD" >> "$GITHUB_ENV"; export DAYFOLD_BUILD="$BUILD"; fi
           node scripts/config.mjs github-env >> "$GITHUB_ENV"
 
       - name: Install dependencies
@@ -165,12 +175,6 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Keep the debug signing key between runs
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: dayfold-debug-keystore-v1
-
       - name: Decode signing key (optional)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -180,7 +184,7 @@ jobs:
             echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/dayfold.keystore" >> "$GITHUB_ENV"
             echo "SIGNED=true" >> "$GITHUB_ENV"
           else
-                        echo "No signing key secret set: building a debug-signed APK. The debug key is cached between runs so updates install over the old app; see the README for permanent signing."
+                        echo "No signing key secret set: building an APK signed with the repo debug key (native/android/debug.keystore). It is the same on every build, so updates install over the old app."
             echo "SIGNED=false" >> "$GITHUB_ENV"
           fi
 

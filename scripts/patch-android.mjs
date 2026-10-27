@@ -21,6 +21,20 @@ edit('app/build.gradle', (s) =>
     .replace(/versionCode \d+/, `versionCode ${Number(cfg.build)}`)
     .replace(/versionName "[^"]*"/, `versionName "${cfg.version}"`),
 );
+// stable debug signing: one public debug key kept in the repo, so every build (any run, any tag) has the same signature
+edit('app/build.gradle', (s) => {
+  if (s.includes('dayfold-debug-key')) return s;
+  return s.replace('    signingConfigs {\n', `    signingConfigs {
+        debug {
+            // dayfold-debug-key: the standard public Android debug credentials; not a secret
+            storeFile file("\${rootDir}/../native/android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+`);
+});
+
 // optional release signing: only active when the keystore variables are set (the workflow sets them from repository secrets)
 edit('app/build.gradle', (s) => {
   if (s.includes('ANDROID_KEYSTORE_FILE')) return s;
@@ -43,7 +57,7 @@ edit('app/src/main/AndroidManifest.xml', (s) => {
   if (!out.includes('android.permission.POST_NOTIFICATIONS')) {
     out = out.replace('<uses-permission android:name="android.permission.INTERNET" />', '<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />');
   }
-  if (!out.includes('android:screenOrientation')) out = out.replace('android:launchMode="singleTask"', 'android:launchMode="singleTask"\n            android:screenOrientation="portrait"');
+  if (!out.includes('android:screenOrientation')) out = out.replace('android:launchMode="singleTask"', 'android:launchMode="singleTask"\n            android:screenOrientation="portrait"\n            android:windowSoftInputMode="adjustResize"');
   return out;
 });
 cpSync(resolve('native/android/res'), resolve(root, 'app/src/main/res'), { recursive: true });
