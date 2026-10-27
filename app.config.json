@@ -1,0 +1,12 @@
+{
+  "appName": "Dayfold",
+  "bundleId": "com.karim.dayfold",
+  "version": "1.0.0",
+  "build": "1",
+  "iosMinVersion": "15.0",
+  "androidMinSdk": 24,
+  "splashBackground": "#0b0b0c",
+  "iconSource": "assets/source.png",
+  "artifactBaseName": "Dayfold",
+  "iconBackground": "#0b0b0c"
+}

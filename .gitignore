@@ -1,0 +1,18 @@
+node_modules
+dist
+coverage
+# generated in CI by `cap add ios|android`; never commit these
+/ios
+/android
+# generated from assets/source.png by scripts/make-assets.mjs
+/assets/icon-only.png
+/assets/icon-foreground.png
+/assets/icon-background.png
+/assets/splash.png
+/assets/splash-dark.png
+.env
+.DS_Store
+*.log
+*.keystore
+*.jks
+build

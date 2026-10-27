@@ -1,0 +1,98 @@
+# Dayfold for iPhone and Android
+
+Dayfold as a real app: exam countdowns, a planned day, tick-off sessions and a morning notification. **Everything runs on the phone.** There is no server, no account and no email. Built with [Capacitor](https://capacitorjs.com); all web assets are bundled inside the app, so it works fully offline.
+
+You need no Mac and no local build tools. GitHub builds both apps in the cloud:
+
+- **`Dayfold.ipa`**: an **unsigned** iOS app. [Sideloadly](https://sideloadly.io) signs it with your free Apple ID and installs it.
+- **`Dayfold.apk`**: an Android app you can install directly.
+
+## 1. Build the apps
+
+1. Put this folder in a GitHub repository and push it:
+   ```bash
+   git init -b main && git add -A && git commit -m "Dayfold app"
+   git remote add origin https://github.com/<you>/dayfold-app.git
+   git push -u origin main
+   ```
+2. On GitHub open **Actions → Build apps → Run workflow**. Leave **platform** on `both`.
+3. Wait for the green check (the iOS job takes about 10 minutes). Open the run and download the artifacts at the bottom: `Dayfold-ios-ipa` and `Dayfold-android-apk`. Each is a zip containing the file.
+
+## 2. Install on iPhone (Windows, free Apple ID)
+
+1. Install **iTunes from Apple's website** (not the Microsoft Store version) and **Sideloadly** on Windows. Sideloadly runs on Windows itself, not inside WSL.
+2. Connect the iPhone by USB, unlock it and tap **Trust**.
+3. On the iPhone turn on **Settings → Privacy & Security → Developer Mode**, then restart when asked.
+4. Open Sideloadly, drag in `Dayfold.ipa`, choose your iPhone, enter your Apple ID, press **Start**. Use an app-specific password if Apple asks.
+5. When it finishes, open **Settings → General → VPN & Device Management**, tap your Apple ID under *Developer App* and tap **Trust**.
+6. Open Dayfold. The first screens ask for your name, your wake and sleep times, notifications and your exams.
+
+A free Apple ID gives you a signature that lasts **7 days** and allows about 3 sideloaded apps at once.
+
+### Renew the signature automatically (Sideloadly Daemon)
+
+Without this you re-install every 7 days. The Sideloadly Daemon re-signs the app in the background.
+
+1. In Sideloadly open **Advanced Options** and turn on **Automatic app refreshing** (Sideloadly Daemon) **before** pressing Start. The wording can differ slightly between versions. Install the app with it enabled.
+2. In iTunes (or Apple Devices), select the iPhone and enable **Show this iPhone when on Wi-Fi**.
+3. Leave the Sideloadly Daemon running. It sits in the Windows tray and should start with Windows.
+
+What it needs: the **computer on and awake**, the daemon running, and the **iPhone on the same Wi-Fi** (or plugged in by USB), unlocked now and then. If any of those are missing for more than about 7 days the app stops opening; plug the phone in and install the `.ipa` again. Your data stays as long as the app is not deleted and the bundle ID does not change.
+
+## 3. Install on Android
+
+1. Download the `.apk` onto the phone (or copy it over).
+2. Open it. Android asks to allow installs from that app (your browser or Files): allow it once.
+3. Open Dayfold and allow notifications when asked.
+
+The APK is signed with a debug key unless you add your own (see *Optional: stable Android signing*). It installs and runs normally; to update it later, uninstall the old one first.
+
+## Your data
+
+All data lives on the device in native storage (not the web view's browser storage, which the OS can clear). **Deleting the app deletes the data.** In **Settings → Data → Backup and restore** copy a backup now and then and paste it into Notes. Paste it back to restore.
+
+## Morning notification
+
+There is no server to send email, so Dayfold schedules a notification for each of the next 14 days (for example "Tue 27 Oct: CSC230 Quiz 3 in 8 days. 4 sessions, 3 h 20 min. First at 08:00: CSC230 Lectures 1-3") on the phone itself. Open the app every now and then so the coming days are rebuilt from your latest progress. On Android, delivery can be a few minutes late when the phone is dozing.
+
+## Change the name, bundle ID, version or icon
+
+Everything lives in **`app.config.json`**:
+
+```json
+{ "appName": "Dayfold", "bundleId": "com.karim.dayfold", "version": "1.0.0", "build": "1", "iosMinVersion": "15.0", "androidMinSdk": 24, "splashBackground": "#0b0b0c", "iconBackground": "#0b0b0c", "iconSource": "assets/source.png", "artifactBaseName": "Dayfold" }
+```
+
+The workflow also accepts **version** and **build** as inputs for a single run. Do not change `bundleId` after installing, or iOS treats it as a different app with empty data.
+
+**One source image.** `assets/source.png` is a transparent mark. Replace it with your own (square, 1024 px or larger, transparent background) and run the workflow: the iOS icon, Android adaptive icon and both splash screens are generated from it by `scripts/make-assets.mjs`. To preview locally: `npm run assets`.
+
+## Optional: stable Android signing
+
+Debug-signed builds change signature on every run. To keep one identity, make a key once and add four repository secrets (Settings → Secrets and variables → Actions):
+
+```bash
+keytool -genkeypair -v -keystore dayfold.keystore -alias dayfold -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 dayfold.keystore      # paste the output as ANDROID_KEYSTORE_BASE64
+```
+
+Secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Keep the keystore file safe and out of git. With the secrets set, the workflow builds a release-signed APK.
+
+## Develop
+
+```bash
+npm install
+npm run dev        # runs in a browser; storage falls back to the browser, notifications are off
+npm test           # on-device API, persistence, reminders
+npm run test:e2e   # Playwright smoke test of the whole UI
+```
+
+The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes with `npm run sync:shared -- <path to that repo>`.
+
+## What is not verified
+
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 11 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+
+## License
+
+PolyForm Noncommercial License 1.0.0 (see `LICENSE`). Free for noncommercial use; nobody may charge for it.

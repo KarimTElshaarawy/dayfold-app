@@ -1,0 +1,11 @@
+import { writeFileSync } from 'node:fs';
+import sharp from 'sharp';
+
+/** Regenerates the default transparent mark (assets/source.png) from the Dayfold ring-and-dot design. */
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 32 32">
+  <circle cx="16" cy="16" r="11" fill="none" stroke="#f5f5f7" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="51.8 17.3" transform="rotate(-90 16 16)"/>
+  <circle cx="8.2" cy="8.2" r="2.4" fill="#ff453a"/>
+</svg>`;
+writeFileSync('assets/source.svg', svg);
+await sharp(Buffer.from(svg)).png().toFile('assets/source.png');
+console.log('assets/source.png written');
