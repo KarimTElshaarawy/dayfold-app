@@ -37,6 +37,15 @@ test('set up with demo data, tick a task, reload, then check every screen', asyn
 
   await page.keyboard.press('Escape');
 
+  // fields behave like app fields: no spell check, no suggestion bar, a Done key
+  const nameField = page.getByLabel('Name', { exact: true });
+  await expect(nameField).toHaveAttribute('autocorrect', 'off');
+  await expect(nameField).toHaveAttribute('enterkeyhint', 'done');
+  await expect(nameField).toHaveAttribute('spellcheck', 'false');
+  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await expect(page.getByLabel('Backup data')).toHaveAttribute('autocapitalize', 'none');
+  await page.keyboard.press('Escape');
+
   // accent color: choose blue, see the CSS variable change, keep it after a reload
   const strong = (): Promise<string> => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent-strong').trim());
   const red = await strong();

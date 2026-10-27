@@ -12,6 +12,7 @@ import { getDevice, initDevice } from './device';
 import { applyTheme, getTheme } from './lib/hooks';
 import { queryClient } from './lib/query';
 import { applyAccent } from './lib/accent';
+import { installFieldDefaults, installKeyboardDismissal, syncKeyboard, watchKeyboard } from './lib/keyboard';
 import { syncStatusBar, watchSystemTheme } from './lib/statusBar';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -21,6 +22,10 @@ import './styles/pages.css';
 applyTheme(getTheme());
 syncStatusBar(getTheme());
 watchSystemTheme(getTheme);
+installKeyboardDismissal();
+installFieldDefaults();
+watchKeyboard(getTheme);
+syncKeyboard(getTheme());
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 
@@ -53,6 +58,7 @@ const start = async (): Promise<void> => {
     const { svc, notifier } = getDevice();
     svc.ensureToday();
     syncStatusBar(getTheme());
+    syncKeyboard(getTheme());
     void notifier.sync().catch(() => undefined);
     void queryClient.invalidateQueries();
   });

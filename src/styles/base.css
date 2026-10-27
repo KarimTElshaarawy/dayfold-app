@@ -1,5 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-bottom: calc(var(--tabbar-h) + var(--sab) + 32px); }
+html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-bottom: calc(var(--tabbar-h) + var(--sab) + 32px); }
 html, body, #root { min-height: 100%; }
 body {
   -webkit-user-select: none;

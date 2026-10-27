@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { applyAccent } from './accent';
+import { syncKeyboard } from './keyboard';
 import { syncStatusBar } from './statusBar';
 
 export const useNow = (intervalMs = 30_000): number => {
@@ -24,6 +25,7 @@ export const applyTheme = (t: ThemePref): void => {
   if (t === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', t);
   syncStatusBar(t);
+  syncKeyboard(t);
   applyAccent();
   try {
     localStorage.setItem('dayfold-theme', t);
