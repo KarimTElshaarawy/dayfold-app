@@ -13,6 +13,7 @@ export interface DocumentStore {
 
 const KEY = 'dayfold-data-v1';
 const KEPT_KEY = 'dayfold-data-unreadable';
+const SEPARATOR = '\n\n--- next unreadable copy ---\n\n';
 
 export const preferencesStore = (): DocumentStore => ({
   read: async () => (await Preferences.get({ key: KEY })).value,
@@ -20,7 +21,9 @@ export const preferencesStore = (): DocumentStore => ({
     await Preferences.set({ key: KEY, value });
   },
   keepUnreadable: async (value) => {
-    await Preferences.set({ key: KEPT_KEY, value });
+    // never overwrite an earlier parked copy: append, so nothing is lost
+    const existing = (await Preferences.get({ key: KEPT_KEY })).value;
+    await Preferences.set({ key: KEPT_KEY, value: existing ? `${existing}${SEPARATOR}${value}` : value });
   },
   readUnreadable: async () => (await Preferences.get({ key: KEPT_KEY })).value,
   clearUnreadable: async () => {
@@ -37,7 +40,7 @@ export const memoryStore = (initial: string | null = null): DocumentStore & { va
       s.value = v;
     },
     keepUnreadable: async (v: string) => {
-      s.kept = v;
+      s.kept = s.kept ? `${s.kept}${SEPARATOR}${v}` : v;
     },
     readUnreadable: async () => s.kept,
     clearUnreadable: async () => {

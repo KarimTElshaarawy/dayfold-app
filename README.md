@@ -78,6 +78,8 @@ keytool -genkeypair -v -keystore dayfold.keystore -alias dayfold -keyalg RSA -ke
 base64 -w0 dayfold.keystore      # paste the output as ANDROID_KEYSTORE_BASE64
 ```
 
+**Switching from the debug key to your own key changes the signature**, so Android refuses to update over the old app: copy a backup, uninstall once, install the new APK and restore the backup.
+
 Secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Keep the keystore file safe and out of git. With the secrets set, the workflow builds a release-signed APK.
 
 ## Develop
@@ -93,7 +95,7 @@ The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes
 
 ## What is not verified
 
-The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 16 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 17 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
 
 ## License
 

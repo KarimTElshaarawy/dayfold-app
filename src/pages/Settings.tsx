@@ -139,7 +139,19 @@ const BackupSheet = ({ open, onClose }: { open: boolean; onClose: () => void }) 
   });
   const unreadable = useMutation({
     mutationFn: () => api<{ data: string | null }>('GET', '/api/backup/unreadable'),
-    onSuccess: (r) => (r.data ? setText(r.data) : toast('No unreadable data was saved.')),
+    onSuccess: async (r) => {
+      if (!r.data) {
+        toast('No unreadable data was saved.');
+        return;
+      }
+      setText(r.data);
+      try {
+        await navigator.clipboard.writeText(r.data);
+        toast('Copied. Paste it into Notes to keep it.');
+      } catch {
+        toast('Select the text and copy it.');
+      }
+    },
   });
   const restore = useMutation({
     mutationFn: () => api('POST', '/api/backup/restore', { data: text.trim() }),

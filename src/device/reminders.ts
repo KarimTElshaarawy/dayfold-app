@@ -11,7 +11,7 @@ export interface Reminder {
   body: string;
 }
 
-const REMINDER_ID_BASE = 1000;
+export const REMINDER_ID_BASE = 1000;
 export const TEST_NOTIFICATION_ID = 999;
 /** iOS keeps at most 64 pending local notifications; two weeks is plenty and stays well under it. */
 export const REMINDER_DAYS = 14;

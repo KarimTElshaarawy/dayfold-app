@@ -129,6 +129,15 @@ describe('persistence', () => {
     expect(store.kept).toBeNull();
   });
 
+  it('never overwrites an earlier parked copy', async () => {
+    const store = memoryStore('{broken1');
+    await makeDevice(store);
+    store.value = '{broken2';
+    await makeDevice(store);
+    expect(store.kept).toContain('{broken1');
+    expect(store.kept).toContain('{broken2');
+  });
+
   it('rolls a restore back when the data cannot be saved', async () => {
     const store = memoryStore();
     const d = await makeDevice(store);

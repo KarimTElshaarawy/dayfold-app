@@ -56,7 +56,7 @@ const start = async (): Promise<void> => {
   });
   // going to the background: make sure the latest changes are on disk
   void CapApp.addListener('pause', () => {
-    void getDevice().repo.flush();
+    getDevice().repo.flush().catch(() => undefined);
   });
 };
 

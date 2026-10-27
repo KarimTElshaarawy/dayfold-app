@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { buildReminders, TEST_NOTIFICATION_ID } from './reminders';
+import { buildReminders, REMINDER_ID_BASE, TEST_NOTIFICATION_ID } from './reminders';
 import type { Service } from './service';
 
 export type Permission = 'granted' | 'denied' | 'prompt' | 'unsupported';
@@ -31,8 +31,10 @@ export const createNotifier = (svc: Service, now: () => number = Date.now): Noti
     return toPermission((await LocalNotifications.checkPermissions()).display);
   };
   const clearPending = async (): Promise<void> => {
+    // only the morning reminders: a test notification that is about to fire must survive a re-sync
     const pending = await LocalNotifications.getPending();
-    if (pending.notifications.length > 0) await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
+    const mine = pending.notifications.filter((n) => n.id >= REMINDER_ID_BASE);
+    if (mine.length > 0) await LocalNotifications.cancel({ notifications: mine.map((n) => ({ id: n.id })) });
   };
   return {
     permission,
