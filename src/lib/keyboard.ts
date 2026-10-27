@@ -24,7 +24,12 @@ export const watchKeyboard = (getTheme: () => ThemePref): void => {
 export const installKeyboardDismissal = (): void => {
   document.addEventListener('keydown', (e) => {
     const el = e.target as HTMLElement | null;
-    if (e.key === 'Enter' && el instanceof HTMLInputElement && el.type !== 'checkbox' && el.type !== 'file') el.blur();
+    if (e.key !== 'Enter' || !(el instanceof HTMLInputElement) || el.type === 'checkbox' || el.type === 'file') return;
+    if (el.form) {
+      e.preventDefault();
+      el.form.requestSubmit();
+    }
+    el.blur();
   });
   document.addEventListener('pointerdown', (e) => {
     const active = document.activeElement;

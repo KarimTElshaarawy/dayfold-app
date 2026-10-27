@@ -71,13 +71,16 @@ export const accentVars = (base: string, dark: boolean): AccentVars => {
   const [r, g, b] = hexToRgb(base);
   if (!dark) {
     const strong = reach(base, ['#ffffff'], 4.5, BLACK);
-    const ink = reach(base, ['#ffffff', '#f5f5f7'], 4.5, BLACK);
+    // ink also sits on the accent tint (pills, current tab, exam blocks), so reach 4.5:1 on the tint over each surface
+    const tints = ['#ffffff', '#f5f5f7', '#f0f0f3'].map((s) => mix(s, [r, g, b], 0.1));
+    const ink = reach(base, ['#ffffff', '#f5f5f7', '#f0f0f3', ...tints], 4.5, BLACK);
     const accent = reach(base, ['#ffffff'], 3, BLACK);
     return { '--accent': accent, '--accent-strong': strong, '--accent-ink': ink, '--accent-num': strong, '--accent-soft': `rgba(${r}, ${g}, ${b}, 0.1)`, '--on-accent': '#ffffff' };
   }
   const strong = reach(base, ['#ffffff'], 4.5, BLACK);
   const accent = reach(mix(base, WHITE, 0.08), ['#1c1c1e', '#000000'], 4.5, WHITE);
-  const ink = reach(mix(base, WHITE, 0.2), ['#1c1c1e', '#2c2c2e'], 4.5, WHITE);
+  const tints = ['#1c1c1e', '#2c2c2e'].map((s) => mix(s, [r, g, b], 0.18));
+  const ink = reach(mix(base, WHITE, 0.2), ['#1c1c1e', '#2c2c2e', ...tints], 4.5, WHITE);
   return { '--accent': accent, '--accent-strong': strong, '--accent-ink': ink, '--accent-num': accent, '--accent-soft': `rgba(${r}, ${g}, ${b}, 0.18)`, '--on-accent': '#ffffff' };
 };
 

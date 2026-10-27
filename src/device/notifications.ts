@@ -37,6 +37,26 @@ export const createNotifier = (svc: Service, now: () => number = Date.now): Noti
     const mine = pending.notifications.filter((n) => n.id >= REMINDER_ID_BASE);
     if (mine.length > 0) await LocalNotifications.cancel({ notifications: mine.map((n) => ({ id: n.id })) });
   };
+  let chain: Promise<void> = Promise.resolve();
+  const syncOnce = async (): Promise<void> => {
+    if (!native || (await permission()) !== 'granted') return;
+    await ensureChannel();
+    await clearPending();
+    const prefs = svc.repo.getPrefs();
+    const reminders = [...buildReminders(svc, now()), ...(prefs.sessionReminders ? buildSessionReminders(svc, now(), prefs.sessionLeadMin) : [])];
+    if (reminders.length === 0) return;
+    await LocalNotifications.schedule({
+      notifications: reminders.map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        channelId: CHANNEL,
+        smallIcon: SMALL_ICON,
+        schedule: { at: new Date(r.at), allowWhileIdle: true },
+      })),
+    });
+  };
+
   return {
     permission,
     request: async () => {
@@ -44,23 +64,10 @@ export const createNotifier = (svc: Service, now: () => number = Date.now): Noti
       const res = await LocalNotifications.requestPermissions();
       return toPermission(res.display);
     },
-    sync: async () => {
-      if (!native || (await permission()) !== 'granted') return;
-      await ensureChannel();
-      await clearPending();
-      const prefs = svc.repo.getPrefs();
-      const reminders = [...buildReminders(svc, now()), ...(prefs.sessionReminders ? buildSessionReminders(svc, now(), prefs.sessionLeadMin) : [])];
-      if (reminders.length === 0) return;
-      await LocalNotifications.schedule({
-        notifications: reminders.map((r) => ({
-          id: r.id,
-          title: r.title,
-          body: r.body,
-          channelId: CHANNEL,
-          smallIcon: SMALL_ICON,
-          schedule: { at: new Date(r.at), allowWhileIdle: true },
-        })),
-      });
+    sync: () => {
+      // one at a time, so a resume sync and a delayed edit sync cannot interleave their cancel and schedule steps
+      chain = chain.catch(() => undefined).then(syncOnce);
+      return chain;
     },
     test: async () => {
       if (!native || (await permission()) !== 'granted') return false;

@@ -173,6 +173,65 @@ describe('topics import', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('reads a headerless three column topics file as course, name, topic', () => {
+    const r = parseTopicsCsv('CSC230,Data Structures,Linked lists\nCSC230,Data Structures,Trees');
+    expect(r.items.map((i) => [i.name, i.topic])).toEqual([['Data Structures', 'Linked lists'], ['Data Structures', 'Trees']]);
+    expect(parseTopicsCsv('CSC230,Trees').items[0]).toEqual({ course: 'CSC230', name: '', topic: 'Trees' });
+  });
+
+  it('rejects commitments that end at or before they start', async () => {
+    const r = parseCommitmentsCsv('label,kind,days,start,end\nShift,work,Tue,2pm,6\nGym,training,Mon,17:30,17:30\nOk,class,Wed,10:00,11:00');
+    expect(r.items.map((i) => i.label)).toEqual(['Ok']);
+    expect(r.errors).toHaveLength(2);
+    const d = await makeDevice();
+    expect((await d.req('POST', '/api/import/commitments/commit', { items: [{ label: 'X', kind: 'work', days: [2], start: '14:00', end: '06:00' }] })).status).toBe(400);
+  });
+
+  it('moves the weekdays with a UTC start time that lands on another local day', () => {
+    const ics = 'BEGIN:VEVENT\nSUMMARY:Evening class\nDTSTART:20260106T040000Z\nDTEND:20260106T060000Z\nRRULE:FREQ=WEEKLY;BYDAY=TU\nEND:VEVENT';
+    const r = parseCommitmentsIcs(ics, 'America/Los_Angeles');
+    expect(r.items).toEqual([expect.objectContaining({ days: [1], start: '20:00', end: '22:00' })]);
+  });
+
+  it('reads quoted and unknown TZIDs and DURATION, and skips ended or biweekly rules with their own reason', () => {
+    const ev = (extra: string): string => `BEGIN:VEVENT\nSUMMARY:Lab\n${extra}\nEND:VEVENT`;
+    const quoted = parseCommitmentsIcs(ev('DTSTART;TZID="Europe/London":20260105T100000\nDURATION:PT1H30M\nRRULE:FREQ=WEEKLY;BYDAY=MO'), 'Europe/London');
+    expect(quoted.items).toEqual([expect.objectContaining({ days: [1], start: '10:00', end: '11:30' })]);
+    const outlook = parseCommitmentsIcs(ev('DTSTART;TZID=Eastern Standard Time:20260105T100000\nDTEND;TZID=Eastern Standard Time:20260105T110000\nRRULE:FREQ=WEEKLY;BYDAY=MO'), 'Asia/Dubai');
+    expect(outlook.items).toHaveLength(1);
+    const skipped = parseCommitmentsIcs([ev('DTSTART:20240101T100000Z\nDTEND:20240101T110000Z\nRRULE:FREQ=WEEKLY;UNTIL=20240501T000000Z'), ev('DTSTART:20260105T100000Z\nDTEND:20260105T110000Z\nRRULE:FREQ=WEEKLY;INTERVAL=2')].join('\n'), 'UTC');
+    expect(skipped.items).toEqual([]);
+    expect(skipped.errors.join(' ')).toMatch(/already ended/);
+    expect(skipped.errors.join(' ')).toMatch(/every few weeks/);
+  });
+
+  it('keeps accent text readable on the accent tint in both themes, for every preset and awkward colors', () => {
+    const blend = (surface: string, hex: string, a: number): string => {
+      const s = hexToRgb(surface);
+      const c = hexToRgb(hex);
+      return `#${[0, 1, 2].map((i) => Math.round((s[i] as number) + ((c[i] as number) - (s[i] as number)) * a).toString(16).padStart(2, '0')).join('')}`;
+    };
+    for (const hex of [...ACCENT_PRESETS.map((p) => p.hex), '#ffff00', '#00ff00']) {
+      const light = accentVars(hex, false);
+      for (const surface of ['#ffffff', '#f5f5f7', '#f0f0f3']) {
+        expect(contrast(light['--accent-ink'], blend(surface, hex, 0.1))).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(light['--accent-ink'], surface)).toBeGreaterThanOrEqual(4.5);
+      }
+      const dark = accentVars(hex, true);
+      for (const surface of ['#1c1c1e', '#2c2c2e']) expect(contrast(dark['--accent-ink'], blend(surface, hex, 0.18))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('says so in the preview when a file has more rows than one import takes', async () => {
+    const d = await makeDevice();
+    const text = `course,topic\n${Array.from({ length: 520 }, (_, i) => `C${i % 5},T${i}`).join('\n')}`;
+    const r = (await d.req('POST', '/api/import/topics/preview', { text })).json;
+    expect(r.items).toHaveLength(500);
+    expect(r.errors.join(' ')).toMatch(/first 500/);
+  });
+});
+
 describe('accent colors', () => {
   const check = (hex: string, dark: boolean): void => {
     const v = accentVars(hex, dark);

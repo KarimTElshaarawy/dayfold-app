@@ -37,6 +37,7 @@ Last known results: mobile 38 unit tests, 1 e2e, tsc and eslint clean. Web 69 un
 
 ## 6. Ordered TODO
 1. DONE 2026-10-27: re-verified both repos (mobile 39 unit + e2e; web typecheck, lint, 69 tests, simulate 0 violations, scan clean). Added course+name+topic CSV import (Settings > Data > Import courses and topics).
+1a. DONE: Opus review of the newest batch found 13 issues, all fixed (DST reminder times, Enter submits forms, headerless 3-col topics, end<=start commitments, ICS UTC weekday shift/TZID/DURATION/UNTIL, accent ink contrast on tint, sheet state reset, Android USE_EXACT_ALARM, serialized sync + sync on pause, restore applies accent, preview caps, debounced color picker). 45 unit tests, e2e, tsc, eslint, build green. Not yet re-reviewed by Opus.
 1b. NEXT ACTION: user re-runs Build apps and reinstalls; then ask about the Opus review.
 2. User re-runs Actions > Build apps and reinstalls Dayfold.ipa via Sideloadly.
 3. Ask the user whether to run the Opus review of the newest batch, loop until clean.

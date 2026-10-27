@@ -9,7 +9,7 @@ import { api } from '../lib/api';
 import { WEEKDAYS } from '../lib/format';
 import { applyTheme, getTheme, type ThemePref } from '../lib/hooks';
 import { useBoot } from '../lib/query';
-import { ACCENT_PRESETS, accentVars, applyAccent } from '../lib/accent';
+import { ACCENT_PRESETS, applyAccent } from '../lib/accent';
 import { BulkImportSheet, type BulkMode } from '../components/BulkImportSheet';
 import type { Boot, Commitment, Course, Settings as S } from '../lib/types';
 import { APP_NAME } from '../lib/appInfo';
@@ -171,7 +171,12 @@ const BackupSheet = ({ open, onClose }: { open: boolean; onClose: () => void }) 
   });
   const restore = useMutation({
     mutationFn: () => api('POST', '/api/backup/restore', { data: text.trim() }),
-    onSuccess: () => { void qc.invalidateQueries(); toast('Restored'); onClose(); },
+    onSuccess: async () => {
+      try { applyAccent((await api<{ accent: string }>('GET', '/api/prefs')).accent); } catch { /* keep the current color */ }
+      void qc.invalidateQueries();
+      toast('Restored');
+      onClose();
+    },
   });
   return (
     <Sheet open={open} onClose={onClose} title="Backup and restore">
@@ -204,6 +209,13 @@ export const Settings = () => {
     mutationFn: (patch: Partial<{ sessionReminders: boolean; sessionLeadMin: number; accent: string }>) => api('PUT', '/api/prefs', patch),
     onSuccess: () => void qc.invalidateQueries(),
   });
+  const dragTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The color picker fires on every drag step: show it live and save once it settles. */
+  const dragAccent = (hex: string): void => {
+    applyAccent(hex);
+    if (dragTimer.current) clearTimeout(dragTimer.current);
+    dragTimer.current = setTimeout(() => prefsMut.mutate({ accent: hex }), 400);
+  };
   const pickAccent = (hex: string): void => {
     applyAccent(hex);
     prefsMut.mutate({ accent: hex });
@@ -244,12 +256,12 @@ export const Settings = () => {
                   <button key={p.id} className="swatch" style={{ background: p.hex }} aria-pressed={b.prefs.accent === p.hex} aria-label={p.name} onClick={() => pickAccent(p.hex)} />
                 ))}
                 <label className="swatch custom" aria-label="Custom color" title="Custom color" style={ACCENT_PRESETS.some((p) => p.hex === b.prefs.accent) ? undefined : { background: b.prefs.accent, boxShadow: '0 0 0 2px var(--ink)' }}>
-                  <input type="color" value={b.prefs.accent} onChange={(e) => pickAccent(e.target.value)} />
+                  <input type="color" defaultValue={b.prefs.accent} onChange={(e) => dragAccent(e.target.value)} />
                 </label>
               </div>
               <div className="row" style={{ marginTop: 10, gap: 8 }}>
-                <span className="pill" style={{ background: accentVars(b.prefs.accent, false)['--accent-soft'], color: accentVars(b.prefs.accent, false)['--accent-ink'] }}>Preview</span>
-                <button className="btn small" style={{ background: accentVars(b.prefs.accent, false)['--accent-strong'] }} tabIndex={-1} aria-hidden="true">Button</button>
+                <span className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>Preview</span>
+                <button className="btn small" style={{ background: 'var(--accent-strong)' }} tabIndex={-1} aria-hidden="true">Button</button>
               </div>
             </Field>
           </section>
@@ -344,7 +356,7 @@ export const Settings = () => {
       <CourseSheet boot={b} course={course} open={!!course} onClose={() => setCourse(null)} />
       <ImportSheet open={impOpen} onClose={() => setImpOpen(false)} />
       <BackupSheet open={backupOpen} onClose={() => setBackupOpen(false)} />
-      <BulkImportSheet mode={bulk ?? 'commitments'} open={bulk !== null} onClose={() => setBulk(null)} hasPlaceholders={b.topics.some((t) => ['Lectures 1-3', 'Lectures 4-6', 'Lectures 7-9', 'Problem sets', 'Past paper themes'].includes(t.title))} />
+      <BulkImportSheet key={bulk ?? 'commitments'} mode={bulk ?? 'commitments'} open={bulk !== null} onClose={() => setBulk(null)} hasPlaceholders={b.topics.some((t) => ['Lectures 1-3', 'Lectures 4-6', 'Lectures 7-9', 'Problem sets', 'Past paper themes'].includes(t.title))} />
     </>
   );
 };

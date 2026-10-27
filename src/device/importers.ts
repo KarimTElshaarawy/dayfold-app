@@ -127,6 +127,12 @@ export const parseCsv = (text: string): ParseResult => {
   return { items, errors };
 };
 
+/** The TZID of an ICS property, unquoted. Unknown names (Outlook's "Eastern Standard Time") fall back to the device zone. */
+const zoneOf = (params: string, fallback: string): string => {
+  const raw = /TZID=("[^"]*"|[^;:]+)/.exec(params)?.[1]?.replace(/"/g, '').trim();
+  return raw && DateTime.local().setZone(raw).isValid ? raw : fallback;
+};
+
 const unfold = (text: string): string[] => text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
 
 export const parseIcs = (text: string, timezone: string): ParseResult => {
@@ -142,19 +148,19 @@ export const parseIcs = (text: string, timezone: string): ParseResult => {
         errors.push('Skipped an event without a start or summary.');
       } else {
         const v = start.value;
-        const tzid = /TZID=([^;:]+)/.exec(start.params)?.[1];
+        const tzid = zoneOf(start.params, timezone);
         let dt: DateTime;
         if (/^\d{8}$/.test(v)) dt = DateTime.fromFormat(v, 'yyyyLLdd', { zone: timezone }).set({ hour: 9 });
         else if (v.endsWith('Z')) dt = DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss'Z'", { zone: 'utc' }).setZone(timezone);
-        else dt = DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss", { zone: tzid ?? timezone }).setZone(timezone);
+        else dt = DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss", { zone: tzid }).setZone(timezone);
         if (!dt.isValid) errors.push(`Skipped "${summary}": unreadable date.`);
         else {
           const kind = guessKind(summary);
           let durationMin: number | undefined;
           const end = ev.DTEND;
           if (end && /T/.test(end.value) && /T/.test(v)) {
-            const e = DateTime.fromFormat(end.value, end.value.endsWith('Z') ? "yyyyLLdd'T'HHmmss'Z'" : "yyyyLLdd'T'HHmmss", { zone: end.value.endsWith('Z') ? 'utc' : tzid ?? timezone });
-            const mins = Math.round(e.diff(DateTime.fromFormat(v, v.endsWith('Z') ? "yyyyLLdd'T'HHmmss'Z'" : "yyyyLLdd'T'HHmmss", { zone: v.endsWith('Z') ? 'utc' : tzid ?? timezone }), 'minutes').minutes);
+            const e = DateTime.fromFormat(end.value, end.value.endsWith('Z') ? "yyyyLLdd'T'HHmmss'Z'" : "yyyyLLdd'T'HHmmss", { zone: end.value.endsWith('Z') ? 'utc' : zoneOf(end.params, tzid) });
+            const mins = Math.round(e.diff(DateTime.fromFormat(v, v.endsWith('Z') ? "yyyyLLdd'T'HHmmss'Z'" : "yyyyLLdd'T'HHmmss", { zone: v.endsWith('Z') ? 'utc' : tzid }), 'minutes').minutes);
             if (Number.isFinite(mins) && mins > 0 && mins <= 480) durationMin = mins;
           }
           items.push(draft({ course: guessCourse(summary), title: summary, kind, date: dt.toISODate() as string, time: dt.toFormat('HH:mm'), durationMin }));
@@ -255,6 +261,10 @@ export const parseCommitmentsCsv = (text: string): CommitmentParse => {
       errors.push(`Row ${line}: needs a name, days (like Mon;Wed), a start and an end time.`);
       return;
     }
+    if (end <= start) {
+      errors.push(`Row ${line}: the end time must be after the start time (use 24 hour times, like 14:00 to 18:00).`);
+      return;
+    }
     const kindText = iKind >= 0 ? (r[iKind] ?? '').trim().toLowerCase() : '';
     const kind = (['class', 'work', 'training', 'other'] as const).find((k) => k === kindText) ?? guessCommitmentKind(`${kindText} ${label}`);
     items.push({ label: label.slice(0, 60), kind, days, start, end });
@@ -268,30 +278,48 @@ const ICS_DAYS: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA
 export const parseCommitmentsIcs = (text: string, timezone: string): CommitmentParse => {
   const items: CommitmentDraft[] = [];
   const errors: string[] = [];
-  let skipped = 0;
+  const skips: Record<string, number> = {};
+  const skip = (why: string): void => {
+    skips[why] = (skips[why] ?? 0) + 1;
+  };
+  const today = DateTime.now().setZone(timezone);
   let ev: Record<string, { value: string; params: string }> | null = null;
   for (const line of unfold(text)) {
     if (line === 'BEGIN:VEVENT') ev = {};
     else if (line === 'END:VEVENT' && ev) {
       const summary = (ev.SUMMARY?.value ?? '').replace(/\\,/g, ',').replace(/\\n/g, ' ').trim();
       const start = ev.DTSTART;
-      const end = ev.DTEND;
       const rule = ev.RRULE?.value ?? '';
-      const byDay = /BYDAY=([A-Z,0-9-]+)/.exec(rule)?.[1];
-      if (!summary || !start || !end || !/FREQ=WEEKLY/.test(rule) || !/T/.test(start.value) || !/T/.test(end.value)) skipped += 1;
+      const byDay = /BYDAY=([A-Z,0-9+-]+)/.exec(rule)?.[1];
+      const until = /UNTIL=(\d{8})/.exec(rule)?.[1];
+      const interval = Number(/INTERVAL=(\d+)/.exec(rule)?.[1] ?? 1);
+      const parse = (v: string, params: string, base: string): { local: DateTime; source: DateTime } => {
+        const zone = v.endsWith('Z') ? 'utc' : zoneOf(params, base);
+        const source = DateTime.fromFormat(v.replace(/Z$/, ''), "yyyyLLdd'T'HHmmss", { zone });
+        return { source, local: source.setZone(timezone) };
+      };
+      if (!summary || !start) skip('no title or start time');
+      else if (!/FREQ=WEEKLY/.test(rule)) skip('not a weekly repeat');
+      else if (interval > 1) skip('repeats every few weeks');
+      else if (until && DateTime.fromFormat(until, 'yyyyLLdd', { zone: timezone }) < today.startOf('day')) skip('already ended');
+      else if (!/T/.test(start.value)) skip('all-day event');
       else {
-        const parse = (v: string, params: string): DateTime => {
-          const tzid = /TZID=([^;:]+)/.exec(params)?.[1];
-          if (v.endsWith('Z')) return DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss'Z'", { zone: 'utc' }).setZone(timezone);
-          return DateTime.fromFormat(v, "yyyyLLdd'T'HHmmss", { zone: tzid ?? timezone }).setZone(timezone);
-        };
-        const s = parse(start.value, start.params);
-        const e = parse(end.value, end.params);
-        if (!s.isValid || !e.isValid || e <= s || e.toISODate() !== s.toISODate()) skipped += 1;
+        const s = parse(start.value, start.params, timezone);
+        let e: { local: DateTime; source: DateTime } | null = null;
+        if (ev.DTEND && /T/.test(ev.DTEND.value)) e = parse(ev.DTEND.value, ev.DTEND.params, zoneOf(start.params, timezone));
+        else if (ev.DURATION) {
+          const d = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?/.exec(ev.DURATION.value);
+          const mins = d ? Number(d[1] ?? 0) * 1440 + Number(d[2] ?? 0) * 60 + Number(d[3] ?? 0) : 0;
+          if (mins > 0) e = { source: s.source.plus({ minutes: mins }), local: s.local.plus({ minutes: mins }) };
+        }
+        if (!s.local.isValid || !e || !e.local.isValid || e.local <= s.local || e.local.toISODate() !== s.local.toISODate()) skip('unreadable times or crosses midnight');
         else {
-          const days = byDay ? byDay.split(',').map((d) => ICS_DAYS[d.replace(/^[-+]?\d+/, '')]).filter((d): d is number => !!d) : [s.weekday];
-          if (days.length === 0) skipped += 1;
-          else items.push({ label: summary.slice(0, 60), kind: guessCommitmentKind(summary), days: [...new Set(days)].sort((a, b) => a - b), start: s.toFormat('HH:mm'), end: e.toFormat('HH:mm') });
+          // BYDAY is written in the file's own zone; the start time was converted to the device zone, so move the days by the same shift
+          const shift = s.local.startOf('day').diff(s.source.startOf('day').setZone(timezone, { keepLocalTime: true }), 'days').days;
+          const wrap = (d: number): number => ((((d - 1 + Math.round(shift)) % 7) + 7) % 7) + 1;
+          const days = byDay ? byDay.split(',').map((d) => ICS_DAYS[d.replace(/^[-+]?\d+/, '')]).filter((d): d is number => !!d).map(wrap) : [s.local.weekday];
+          if (days.length === 0) skip('no usable weekdays');
+          else items.push({ label: summary.slice(0, 60), kind: guessCommitmentKind(summary), days: [...new Set(days)].sort((a, b) => a - b), start: s.local.toFormat('HH:mm'), end: e.local.toFormat('HH:mm') });
         }
       }
       ev = null;
@@ -300,7 +328,7 @@ export const parseCommitmentsIcs = (text: string, timezone: string): CommitmentP
       if (m) ev[m[1] as string] = { value: m[3] as string, params: m[2] as string };
     }
   }
-  if (skipped > 0) errors.push(`${skipped} event${skipped === 1 ? ' was' : 's were'} skipped because ${skipped === 1 ? 'it does' : 'they do'} not repeat weekly or cross midnight.`);
+  for (const [why, n] of Object.entries(skips)) errors.push(`${n} event${n === 1 ? ' was' : 's were'} skipped (${why}).`);
   return { items, errors };
 };
 
@@ -323,8 +351,10 @@ export const parseTopicsCsv = (text: string): { items: TopicDraft[]; errors: str
     return hasHeader ? i : fallback;
   };
   const iCourse = col(['course', 'code'], 0);
-  const iName = hasHeader ? col(['name', 'title', 'course name'], -1) : -1;
-  const iTopic = hasHeader ? col(['topic', 'content', 'topics'], -1) : 1;
+  const wide = !hasHeader && rows.some((r) => r.length >= 3);
+  const iName0 = wide ? 1 : -1;
+  const iName = hasHeader ? col(['name', 'title', 'course name'], -1) : iName0;
+  const iTopic = hasHeader ? col(['topic', 'content', 'topics'], -1) : wide ? 2 : 1;
   const items: TopicDraft[] = [];
   const errors: string[] = [];
   rows.forEach((r, n) => {

@@ -57,6 +57,10 @@ edit('app/src/main/AndroidManifest.xml', (s) => {
   if (!out.includes('android.permission.POST_NOTIFICATIONS')) {
     out = out.replace('<uses-permission android:name="android.permission.INTERNET" />', '<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />');
   }
+  // exact alarms, so a "starts in 5 min" reminder is not held back by Doze
+  if (!out.includes('android.permission.USE_EXACT_ALARM')) {
+    out = out.replace('<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />', '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />');
+  }
   if (!out.includes('android:screenOrientation')) out = out.replace('android:launchMode="singleTask"', 'android:launchMode="singleTask"\n            android:screenOrientation="portrait"\n            android:windowSoftInputMode="adjustResize"');
   return out;
 });

@@ -79,10 +79,11 @@ export const buildSessionReminders = (svc: Service, nowMs: number, leadMin: numb
   const courses = svc.repo.listCourses();
   const out: Array<{ at: number; title: string; body: string }> = [];
   for (const view of svc.range(today, addDays(today, SESSION_DAYS - 1))) {
-    const dayStart = DateTime.fromISO(view.date, { zone: timezone }).startOf('day');
+    const day = DateTime.fromISO(view.date, { zone: timezone }).startOf('day');
     for (const b of view.blocks) {
       if (!isStudy(b) || b.status !== 'planned') continue;
-      const startAt = dayStart.plus({ minutes: b.start }).toMillis();
+      // b.start is a wall-clock time, so build it from the clock (not as elapsed time) to stay right on DST change days
+      const startAt = day.plus({ days: Math.floor(b.start / 1440) }).set({ hour: Math.floor((b.start % 1440) / 60), minute: b.start % 60 }).toMillis();
       const at = startAt - leadMin * 60_000;
       if (!(at > nowMs + 5_000)) continue;
       const code = b.courseId ? (courses.find((c) => c.id === b.courseId)?.code ?? '') : '';

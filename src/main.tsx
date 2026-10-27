@@ -64,7 +64,10 @@ const start = async (): Promise<void> => {
   });
   // going to the background: make sure the latest changes are on disk
   void CapApp.addListener('pause', () => {
-    getDevice().repo.flush().catch(() => undefined);
+    const { repo, notifier } = getDevice();
+    repo.flush().catch(() => undefined);
+    // do not wait for the 800 ms edit timer: the app may be frozen before it fires
+    void notifier.sync().catch(() => undefined);
   });
 };
 

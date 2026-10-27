@@ -113,6 +113,12 @@ export interface Router {
   handle(method: string, url: string, body?: unknown): Promise<Reply>;
 }
 
+/** A commit takes at most this many rows, so say so in the preview instead of failing on "Add". */
+const capPreview = <T extends { items: unknown[]; errors: string[] }>(r: T, max: number): T => {
+  if (r.items.length <= max) return r;
+  return { ...r, items: r.items.slice(0, max), errors: [...r.errors, `Only the first ${max} rows can be imported at once. Import the rest in another file.`] };
+};
+
 export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier): Router => {
   let syncTimer: ReturnType<typeof setTimeout> | null = null;
   const scheduleSync = (): void => {
@@ -295,7 +301,7 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       const o = obj(body);
       if (c === 'preview') {
         const text = str(o.text, 'text', 500_000);
-        return ok(o.kind === 'ics' ? parseCommitmentsIcs(text, repo.getSettings().timezone) : parseCommitmentsCsv(text));
+        return ok(capPreview(o.kind === 'ics' ? parseCommitmentsIcs(text, repo.getSettings().timezone) : parseCommitmentsCsv(text), 200));
       }
       if (c === 'commit') {
         if (!Array.isArray(o.items) || o.items.length > 200) bad('items is invalid');
@@ -303,7 +309,10 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
           const it = obj(raw);
           if (!CKINDS.includes(it.kind as (typeof CKINDS)[number])) bad('kind is invalid');
           if (!Array.isArray(it.days) || it.days.length < 1 || it.days.length > 7) bad('days is invalid');
-          return { label: str(it.label, 'label', 60), kind: it.kind as Commitment['kind'], days: (it.days as unknown[]).map((d) => int(d, 'day', 1, 7)).sort(), start: hhmm(it.start, 'start'), end: hhmm(it.end, 'end') };
+          const start = hhmm(it.start, 'start');
+          const end = hhmm(it.end, 'end');
+          if (end <= start) bad('end must be after start');
+          return { label: str(it.label, 'label', 60), kind: it.kind as Commitment['kind'], days: (it.days as unknown[]).map((d) => int(d, 'day', 1, 7)).sort(), start, end };
         });
         const created = repo.tx(() => {
           let n = 0;
@@ -322,7 +331,7 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
 
     if (a === 'import' && b === 'topics' && method === 'POST') {
       const o = obj(body);
-      if (c === 'preview') return ok(parseTopicsCsv(str(o.text, 'text', 500_000)));
+      if (c === 'preview') return ok(capPreview(parseTopicsCsv(str(o.text, 'text', 500_000)), 500));
       if (c === 'commit') {
         if (!Array.isArray(o.items) || o.items.length > 500) bad('items is invalid');
         const rows = (o.items as unknown[]).map((raw) => {
@@ -363,7 +372,7 @@ export const createRouter = (repo: DeviceRepo, svc: Service, notifier: Notifier)
       const o = obj(body);
       if (b === 'preview') {
         const text = str(o.text, 'text', 500_000);
-        return ok(o.kind === 'ics' ? parseIcs(text, repo.getSettings().timezone) : parseCsv(text));
+        return ok(capPreview(o.kind === 'ics' ? parseIcs(text, repo.getSettings().timezone) : parseCsv(text), 300));
       }
       if (b === 'commit') {
         if (!Array.isArray(o.items) || o.items.length > 300) bad('items is invalid');
