@@ -27,7 +27,7 @@ Definition of done for the current phase: the newest mobile features (session re
 - Never repeat secret values.
 
 ## 4. Current state
-Mobile repo last pushed 6bd3eed (8b5b2a5 keyboard, 2a62407 features). Web repo last 283ec91 (toast fix). Both working trees clean at resume.
+Mobile repo last pushed 5578437 (courses+names+topics import; 39 unit tests, e2e, tsc, eslint, build green); before that 6bd3eed (8b5b2a5 keyboard, 2a62407 features). Web repo last 283ec91 (toast fix). Both working trees clean at resume.
 Key mobile files: src/device/{storage,repo,prefs,router,service,reminders,notifications,importers,index}.ts, src/lib/{api,accent,keyboard,statusBar,hooks}.ts, src/main.tsx, src/pages/Settings.tsx, src/components/{BulkImportSheet,Sheet,Toast,StartupError,UnreadableBanner}.tsx, scripts/{config,patch-ios,patch-android,make-assets}.mjs, .github/workflows/build.yml, tests/{helpers,device,native,features}.test.ts, tests/e2e/app.spec.ts.
 Last known results: mobile 38 unit tests, 1 e2e, tsc and eslint clean. Web 69 unit/API, 11 e2e, simulation 0 violations, secret scan clean, Lighthouse 96-100.
 
@@ -36,7 +36,8 @@ Last known results: mobile 38 unit tests, 1 e2e, tsc and eslint clean. Web 69 un
 - Unverified: CI builds for the newest commits, real iPhone keyboard behavior, Sideloadly on Windows ARM, Docker image never built.
 
 ## 6. Ordered TODO
-1. Re-verify everything now (tsc, eslint, unit, build, e2e, scan in both repos). NEXT ACTION.
+1. DONE 2026-10-27: re-verified both repos (mobile 39 unit + e2e; web typecheck, lint, 69 tests, simulate 0 violations, scan clean). Added course+name+topic CSV import (Settings > Data > Import courses and topics).
+1b. NEXT ACTION: user re-runs Build apps and reinstalls; then ask about the Opus review.
 2. User re-runs Actions > Build apps and reinstalls Dayfold.ipa via Sideloadly.
 3. Ask the user whether to run the Opus review of the newest batch, loop until clean.
 4. Optional offers: Raspberry Pi guide, Fly.io config, port mobile features to web, trademark check, store launch.
