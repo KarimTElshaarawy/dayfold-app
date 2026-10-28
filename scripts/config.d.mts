@@ -9,5 +9,6 @@ export interface AppConfig {
   iconBackground: string;
   iconSource: string;
   artifactBaseName: string;
+  startupSeconds: number;
 }
 export function loadConfig(root?: string, env?: NodeJS.ProcessEnv): AppConfig;

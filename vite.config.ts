@@ -8,12 +8,12 @@ const app = loadConfig();
 /** Puts the app name from app.config.json into index.html. */
 const appName = (): Plugin => ({
   name: 'app-name',
-  transformIndexHtml: (html) => html.replaceAll('%APP_NAME%', app.appName),
+  transformIndexHtml: (html) => html.replaceAll('%APP_NAME%', app.appName).replaceAll('%STARTUP_S%', String(app.startupSeconds)),
 });
 
 export default defineConfig({
   plugins: [react(), appName()],
-  define: { __APP_NAME__: JSON.stringify(app.appName) },
+  define: { __APP_NAME__: JSON.stringify(app.appName), __STARTUP_MS__: JSON.stringify(Math.round(app.startupSeconds * 1000)) },
   resolve: { alias: { '@shared': fileURLToPath(new URL('./shared', import.meta.url)) } },
   build: { outDir: 'dist', emptyOutDir: true, target: 'es2020', sourcemap: false },
 });

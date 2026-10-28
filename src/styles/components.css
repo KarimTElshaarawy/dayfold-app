@@ -118,8 +118,11 @@
 
 /* ---------- motion and polish ---------- */
 .page-loading { display: grid; place-items: center; min-height: 40vh; color: var(--ink-2); }
-/* pages rise in one block after another; sheets and toasts animate themselves */
-@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* pages rise in one block after another; sheets and toasts animate themselves. After a swipe or a tab-bar slide they come in from the side
+   instead: the same animation with different start values, so changing direction never restarts a running animation. */
+@keyframes rise { from { opacity: 0; transform: translate(var(--enter-x, 0px), var(--enter-y, 14px)); } to { opacity: 1; transform: none; } }
+html[data-swipe='next'] { --enter-x: 36px; --enter-y: 0px; }
+html[data-swipe='prev'] { --enter-x: -36px; --enter-y: 0px; }
 @media (prefers-reduced-motion: no-preference) {
   .page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation-name: rise; animation-duration: 0.5s; animation-timing-function: var(--ease); animation-fill-mode: backwards; }
   .page > :nth-child(2) { animation-delay: 0.05s; }
@@ -127,13 +130,6 @@
   .page > :nth-child(4) { animation-delay: 0.15s; }
   .page > :nth-child(5) { animation-delay: 0.2s; }
   .page > :nth-child(n + 6) { animation-delay: 0.25s; }
-}
-/* swiping between tabs: the new page slides in from the side it came from */
-@keyframes slide-next { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
-@keyframes slide-prev { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: no-preference) {
-  html[data-swipe='next'] .page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation-name: slide-next; animation-duration: 0.38s; }
-  html[data-swipe='prev'] .page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation-name: slide-prev; animation-duration: 0.38s; }
 }
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .tab, .side-link { transition: color 0.2s var(--ease), background 0.2s var(--ease), transform 0.2s var(--ease); }
@@ -162,3 +158,28 @@ a.card:active, button.card:active { transform: scale(0.985); }
 .tabbar { transition: transform 0.25s var(--ease), opacity 0.2s; }
 html.kb-open .tabbar { transform: translateY(110%); opacity: 0; visibility: hidden; pointer-events: none; transition: transform 0.25s var(--ease), opacity 0.2s, visibility 0s 0.25s; }
 html.kb-open .toast { bottom: 16px; }
+
+/* ---------- hold and slide along the tab bar ---------- */
+.tabbar { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tab { -webkit-touch-callout: none; -webkit-user-drag: none; }
+.tab-lens {
+  position: absolute; top: 5px; bottom: calc(5px + var(--sab)); left: calc(8px + (100% - 16px) / 5 * var(--hover, 0)); width: calc((100% - 16px) / 5);
+  border-radius: 18px; pointer-events: none; opacity: 0; transform: scale(0.7);
+  background: linear-gradient(180deg, var(--accent-soft), transparent 140%), var(--surface-3);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12), inset 0 0 0 1px var(--hairline-strong);
+  transition: left 0.34s var(--ease), opacity 0.2s, transform 0.34s var(--ease);
+}
+.tabbar.scrubbing .tab-lens { opacity: 1; transform: scale(1); }
+.tab-bubble {
+  position: absolute; bottom: calc(100% + 10px); left: calc(8px + (100% - 16px) / 5 * (var(--hover, 0) + 0.5)); transform: translateX(-50%);
+  padding: 7px 14px; border-radius: var(--r-pill); font-size: 13px; font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; pointer-events: none;
+  background: var(--ink); color: var(--on-ink); box-shadow: var(--shadow-3);
+  transition: left 0.34s var(--ease); animation: bubble-in 0.22s var(--ease);
+}
+.tab-bubble::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px; border: 5px solid transparent; border-top-color: var(--ink); }
+@keyframes bubble-in { from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.85); } to { opacity: 1; transform: translateX(-50%); } }
+.tabbar.scrubbing .tab { color: var(--ink-2); }
+.tabbar.scrubbing .tab.hover { color: var(--accent-ink); font-weight: 650; }
+.tabbar.scrubbing .tab.hover svg { transform: translateY(-4px) scale(1.28); color: var(--accent); animation: none; }
+.tabbar.scrubbing .tab[aria-current='page']::after { opacity: 0.35; }
+.tab { z-index: 1; }

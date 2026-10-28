@@ -8,5 +8,6 @@
   "splashBackground": "#0b0b0c",
   "iconSource": "assets/source.png",
   "artifactBaseName": "Dayfold",
-  "iconBackground": "#0b0b0c"
+  "iconBackground": "#0b0b0c",
+  "startupSeconds": 10
 }

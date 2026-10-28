@@ -27,6 +27,10 @@ export const isTextField = (el: Element | null): boolean =>
 /** Anything a tap can act on. Tapping these must reach their click handler, so they never dismiss the keyboard on press. */
 const TAPPABLE = 'input, textarea, select, button, a, label, summary, [role="button"], [role="switch"], [role="checkbox"], [role="tab"]';
 
+let dismissedAt = 0;
+/** True when the touch that is starting right now is the one that just closed the keyboard (so it is not also a swipe). */
+export const justDismissedKeyboard = (): boolean => Date.now() - dismissedAt < 150;
+
 export const installKeyboardDismissal = (): void => {
   document.addEventListener('keydown', (e) => {
     const el = e.target as HTMLElement | null;
@@ -43,7 +47,10 @@ export const installKeyboardDismissal = (): void => {
   document.addEventListener('pointerdown', (e) => {
     if (!isTextField(document.activeElement) && !(document.activeElement instanceof HTMLSelectElement)) return;
     const target = e.target as Element | null;
-    if (!target?.closest(TAPPABLE)) (document.activeElement as HTMLElement).blur();
+    if (!target?.closest(TAPPABLE)) {
+      dismissedAt = Date.now();
+      (document.activeElement as HTMLElement).blur();
+    }
   });
   // On Android a tap on a button moves focus to it, which closes the keyboard: buttons marked data-keep-keyboard never take focus.
   document.addEventListener('mousedown', (e) => {

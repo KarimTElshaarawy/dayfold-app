@@ -1,9 +1,10 @@
 import { BarChart3, CalendarDays, CircleDot, GraduationCap, Settings as Cog } from 'lucide-react';
-import { Suspense } from 'react';
+import { Suspense, type CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
 import { APP_NAME } from '../lib/appInfo';
 import { useSwipeTabs } from '../lib/swipe';
+import { useTabScrub } from '../lib/tabscrub';
 
 const items = [
   { to: '/today', label: 'Today', Icon: CircleDot },
@@ -17,6 +18,7 @@ const PATHS = items.map((i) => i.to);
 
 export const Shell = () => {
   useSwipeTabs(PATHS);
+  const { hover, handlers } = useTabScrub(PATHS);
   return (
     <div className="shell">
       <nav className="sidebar" aria-label="Main">
@@ -39,9 +41,12 @@ export const Shell = () => {
           </Suspense>
         </div>
       </main>
-      <nav className="tabbar" aria-label="Main">
-        {items.map(({ to, label, Icon }) => (
-          <NavLink key={to} to={to} className="tab">
+      <nav className={`tabbar${hover !== null ? ' scrubbing' : ''}`} aria-label="Main" data-no-swipe style={hover !== null ? ({ '--hover': hover } as CSSProperties) : undefined} {...handlers}>
+        {/* the lens and the bubble only show while a finger is sliding along the bar */}
+        <span className="tab-lens" aria-hidden="true" />
+        {hover !== null && <span className="tab-bubble" aria-hidden="true">{items[hover]?.label}</span>}
+        {items.map(({ to, label, Icon }, i) => (
+          <NavLink key={to} to={to} className={`tab${hover === i ? ' hover' : ''}`} draggable={false}>
             <Icon size={24} />
             {label}
           </NavLink>

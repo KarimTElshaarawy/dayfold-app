@@ -5,10 +5,11 @@ import { LucideProvider } from 'lucide-react';
 import { LazyMotion, MotionConfig, domAnimation } from 'motion/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { App, preloadPages } from './App';
 import { StartupError } from './components/StartupError';
 import { ToastProvider } from './components/Toast';
 import { getDevice, initDevice } from './device';
+import { STARTUP_MS } from './lib/appInfo';
 import { applyTheme, getTheme } from './lib/hooks';
 import { bootQuery, queryClient } from './lib/query';
 import { applyAccent } from './lib/accent';
@@ -34,14 +35,23 @@ const start = async (): Promise<void> => {
   try {
     // the spinning logo (drawn by index.html) shows for at least a moment, so it reads as a start-up and not a flash
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    await Promise.all([initDevice(), new Promise<void>((done) => window.setTimeout(done, reduced ? 0 : 1900))]);
+    // the animation plays for startupSeconds counted from the page's first moment (not from when this code ran), and a tap skips it
+    const remaining = reduced ? 0 : Math.max(0, STARTUP_MS - performance.now());
+    const playing = new Promise<void>((done) => {
+      const timer = window.setTimeout(done, remaining);
+      document.querySelector('.boot')?.addEventListener('pointerdown', () => {
+        window.clearTimeout(timer);
+        done();
+      }, { once: true });
+    });
+    await Promise.all([initDevice(), playing, preloadPages().catch(() => undefined)]);
     applyAccent(getDevice().repo.getPrefs().accent);
     // have the first screen's data ready, so the spinning logo hands over straight to the app (no second splash)
     await queryClient.fetchQuery(bootQuery);
     // the start-up screen eases out instead of cutting to the app
     if (!reduced) {
       document.querySelector('.boot')?.classList.add('boot-out');
-      await new Promise<void>((done) => window.setTimeout(done, 340));
+      await new Promise<void>((done) => window.setTimeout(done, 520));
     }
   } catch (error) {
     // never leave a blank screen: offer a way to see, copy or reset the stored data

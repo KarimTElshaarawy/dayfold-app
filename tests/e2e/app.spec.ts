@@ -219,7 +219,7 @@ test('a setting the app rejects is put back, and the chosen accent is kept acros
   expect(await page.evaluate(() => localStorage.getItem('dayfold-accent'))).toBe('#2f7df6');
 });
 
-test('swiping left and right moves between the tabs, but not over a field or past the ends', async ({ page, context }) => {
+test('swiping left and right moves between the tabs and stops at the ends', async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);
   const swipe = async (fromX: number, toX: number, y = 400): Promise<void> => {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
@@ -266,4 +266,130 @@ test('swiping left and right moves between the tabs, but not over a field or pas
   await onPage('Settings');
   await swipe(320, 80);
   await expect(page).toHaveURL(/\/settings$/);
+});
+
+test('holding the tab bar and sliding along it picks the page, with a bubble naming it; a plain tap still works', async ({ page, context }) => {
+  const cdp = await context.newCDPSession(page);
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await expect(page).toHaveURL(/\/today$/);
+  await page.waitForTimeout(500);
+
+  const bar = page.getByRole('navigation', { name: 'Main' }).last();
+  const centre = async (name: string): Promise<{ x: number; y: number }> => {
+    const b = (await bar.getByRole('link', { name }).boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  const today = await centre('Today');
+  const stats = await centre('Stats');
+  const exams = await centre('Exams');
+
+  // press on Today, slide right to Stats: the bubble follows, and nothing opens until the finger lifts
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [today] });
+  for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: today.x + ((stats.x - today.x) * i) / 8, y: today.y }] });
+  await expect(page.locator('.tab-bubble')).toHaveText('Stats');
+  await expect(bar).toHaveClass(/scrubbing/);
+  await expect(page).toHaveURL(/\/today$/);
+  // slide back to Exams before letting go: that one opens
+  for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: stats.x + ((exams.x - stats.x) * i) / 6, y: stats.y }] });
+  await expect(page.locator('.tab-bubble')).toHaveText('Exams');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page).toHaveURL(/\/exams$/);
+  await expect(bar).not.toHaveClass(/scrubbing/);
+
+  // a plain tap is still a tap
+  await page.waitForTimeout(450);
+  await bar.getByRole('link', { name: 'Week' }).tap();
+  await expect(page).toHaveURL(/\/week$/);
+
+  // a hold that does not move also starts it, and letting go on the same tab stays put
+  const week = await centre('Week');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [week] });
+  await expect(page.locator('.tab-bubble')).toHaveText('Week');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page).toHaveURL(/\/week$/);
+});
+
+
+test('a sideways drag over a field, with a pop-up open, or that just closed the keyboard is not a page swipe', async ({ page, context }) => {
+  const cdp = await context.newCDPSession(page);
+  const drag = async (from: { x: number; y: number }, dx: number): Promise<void> => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+    for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + (dx * i) / 6, y: from.y }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Settings' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await page.waitForTimeout(500);
+  // swiping right goes to Stats from Settings: all of the cases below must stay on Settings
+  const centreOf = async (loc: import('@playwright/test').Locator): Promise<{ x: number; y: number }> => {
+    const b = (await loc.boundingBox())!;
+    return { x: b.x + 40, y: b.y + b.height / 2 };
+  };
+
+  // over a text field
+  await drag(await centreOf(page.getByLabel('Name', { exact: true })), 220);
+  await expect(page).toHaveURL(/\/settings$/);
+
+  // with the keyboard up (a field has focus): the drag that closes it is not a swipe
+  await page.getByLabel('Name', { exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/kb-open/);
+  await drag(await centreOf(page.getByRole('heading', { level: 1, name: 'Settings' })), 220);
+  await page.waitForTimeout(300);
+  await expect(page).toHaveURL(/\/settings$/);
+
+  // with a pop-up open
+  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.waitForTimeout(400);
+  await drag({ x: 60, y: 200 }, 220);
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test.describe('with motion on', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('a tap skips the start-up animation, and a swipe plays the page animation once', async ({ page, context }) => {
+    const cdp = await context.newCDPSession(page);
+    await page.goto('/');
+    // the start-up screen is up (it plays for startupSeconds): a tap skips it
+    await expect(page.locator('.boot-name')).toBeVisible();
+    const t0 = Date.now();
+    await page.locator('.boot').click();
+    await expect(page.getByLabel('Your name')).toBeVisible({ timeout: 4000 });
+    expect(Date.now() - t0).toBeLessThan(4000);
+
+    await page.getByLabel('Your name').fill('Sam');
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Use demo data' }).click();
+    await page.getByRole('button', { name: 'Start planning' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    await page.evaluate(() => {
+      (window as unknown as { __rise: string[] }).__rise = [];
+      document.addEventListener('animationstart', (e) => (window as unknown as { __rise: string[] }).__rise.push((e as AnimationEvent).animationName), true);
+    });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 320, y: 400 }] });
+    for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 320 - (240 * i) / 6, y: 400 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page).toHaveURL(/\/exams$/);
+    await page.waitForTimeout(1600);
+    const { starts, children } = await page.evaluate(() => ({
+      starts: (window as unknown as { __rise: string[] }).__rise.filter((n) => n === 'rise').length,
+      children: document.querySelectorAll('.page > :not(.scrim):not(.sheet-wrap):not(.page-loading)').length,
+    }));
+    // each page block animates in once: no second round when the swipe direction clears
+    expect(starts).toBeGreaterThan(0);
+    expect(starts).toBeLessThanOrEqual(children);
+  });
 });

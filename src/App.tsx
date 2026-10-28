@@ -7,11 +7,21 @@ import { useBoot } from './lib/query';
 import { NotFound } from './pages/NotFound';
 import { Today } from './pages/Today';
 
-const Exams = lazy(() => import('./pages/Exams').then((m) => ({ default: m.Exams })));
-const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const Setup = lazy(() => import('./pages/Setup').then((m) => ({ default: m.Setup })));
-const Stats = lazy(() => import('./pages/Stats').then((m) => ({ default: m.Stats })));
-const Week = lazy(() => import('./pages/Week').then((m) => ({ default: m.Week })));
+const loaders = {
+  exams: () => import('./pages/Exams').then((m) => ({ default: m.Exams })),
+  settings: () => import('./pages/Settings').then((m) => ({ default: m.Settings })),
+  setup: () => import('./pages/Setup').then((m) => ({ default: m.Setup })),
+  stats: () => import('./pages/Stats').then((m) => ({ default: m.Stats })),
+  week: () => import('./pages/Week').then((m) => ({ default: m.Week })),
+};
+const Exams = lazy(loaders.exams);
+const Settings = lazy(loaders.settings);
+const Setup = lazy(loaders.setup);
+const Stats = lazy(loaders.stats);
+const Week = lazy(loaders.week);
+
+/** Loads every page's code up front (during the start-up animation), so switching tabs never waits on it. */
+export const preloadPages = (): Promise<unknown> => Promise.all(Object.values(loaders).map((load) => load()));
 
 /** The same spinning logo as the start-up screen in index.html, so loading never looks like a different screen. */
 const Splash = () => (

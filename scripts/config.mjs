@@ -29,6 +29,9 @@ export const loadConfig = (root = process.cwd(), env = process.env) => {
   for (const key of Object.keys(FIELDS)) {
     if (out[key] === undefined || out[key] === '') throw new Error(`app.config.json is missing "${key}"`);
   }
+  // how long the start-up animation plays (tap skips it); 0 turns it off
+  out.startupSeconds = Number(env.DAYFOLD_STARTUP_SECONDS || out.startupSeconds || 0);
+  if (!(out.startupSeconds >= 0 && out.startupSeconds <= 30)) throw new Error(`Invalid startupSeconds: ${out.startupSeconds}`);
   if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(out.bundleId)) throw new Error(`Invalid bundleId: ${out.bundleId}`);
   if (!/^\d+(\.\d+){0,2}$/.test(String(out.version))) throw new Error(`Invalid version: ${out.version}`);
   if (!/^\d+$/.test(String(out.build))) throw new Error(`Invalid build number: ${out.build}`);
