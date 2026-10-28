@@ -20,7 +20,11 @@ export const Sheet = ({ open, title, onClose, children }: Props) => {
     if (!open) return;
     const opener = document.activeElement as HTMLElement | null;
     const focusables = (): HTMLElement[] => Array.from(ref.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? []).filter((el) => !el.hasAttribute('disabled'));
-    window.setTimeout(() => (focusables().find((el) => el.tagName !== 'BUTTON') ?? focusables()[0])?.focus(), 60);
+    // move focus into the pop-up once it is on screen, unless focus is already inside it (someone started typing first)
+    const focusTimer = window.setTimeout(() => {
+      if (ref.current?.contains(document.activeElement)) return;
+      (focusables().find((el) => el.tagName !== 'BUTTON') ?? focusables()[0])?.focus();
+    }, 60);
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') closeRef.current();
       if (e.key === 'Tab') {
@@ -43,6 +47,7 @@ export const Sheet = ({ open, title, onClose, children }: Props) => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
+      window.clearTimeout(focusTimer);
       window.removeEventListener('keydown', onKey);
       void back.then((h) => h.remove()).catch(() => undefined);
       document.body.style.overflow = prev;
