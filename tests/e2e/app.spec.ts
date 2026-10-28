@@ -218,3 +218,52 @@ test('a setting the app rejects is put back, and the chosen accent is kept acros
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('dayfold-accent'))).toBe('#2f7df6');
 });
+
+test('swiping left and right moves between the tabs, but not over a field or past the ends', async ({ page, context }) => {
+  const cdp = await context.newCDPSession(page);
+  const swipe = async (fromX: number, toX: number, y = 400): Promise<void> => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
+    for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fromX + ((toX - fromX) * i) / 6, y }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await expect(page).toHaveURL(/\/today$/);
+
+  // (each swipe waits for the new page to be on screen first: a touch whose page is swapped out mid-swipe is lost by the browser)
+  const onPage = async (name: string): Promise<void> => {
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await page.waitForTimeout(450);
+  };
+  await onPage('Today');
+  await swipe(320, 80); // swipe left: next tab
+  await expect(page).toHaveURL(/\/exams$/);
+  await onPage('Exams');
+  await swipe(320, 80);
+  await expect(page).toHaveURL(/\/week$/);
+  await onPage('Week');
+  await swipe(80, 320); // swipe right: back
+  await expect(page).toHaveURL(/\/exams$/);
+  await onPage('Exams');
+  await swipe(80, 320);
+  await expect(page).toHaveURL(/\/today$/);
+  await onPage('Today');
+  await swipe(80, 320); // already the first tab: nothing happens
+  await expect(page).toHaveURL(/\/today$/);
+
+  // a mostly vertical drag is a scroll, not a swipe
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y: 300 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 200, y: 560 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page).toHaveURL(/\/today$/);
+
+  // the last tab: swiping on does nothing
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await onPage('Settings');
+  await swipe(320, 80);
+  await expect(page).toHaveURL(/\/settings$/);
+});

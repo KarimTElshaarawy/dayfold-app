@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
 import { APP_NAME } from '../lib/appInfo';
+import { useSwipeTabs } from '../lib/swipe';
 
 const items = [
   { to: '/today', label: 'Today', Icon: CircleDot },
@@ -12,7 +13,10 @@ const items = [
   { to: '/settings', label: 'Settings', Icon: Cog },
 ];
 
+const PATHS = items.map((i) => i.to);
+
 export const Shell = () => {
+  useSwipeTabs(PATHS);
   return (
     <div className="shell">
       <nav className="sidebar" aria-label="Main">

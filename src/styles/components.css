@@ -128,6 +128,13 @@
   .page > :nth-child(5) { animation-delay: 0.2s; }
   .page > :nth-child(n + 6) { animation-delay: 0.25s; }
 }
+/* swiping between tabs: the new page slides in from the side it came from */
+@keyframes slide-next { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes slide-prev { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-swipe='next'] .page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation-name: slide-next; animation-duration: 0.38s; }
+  html[data-swipe='prev'] .page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation-name: slide-prev; animation-duration: 0.38s; }
+}
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .tab, .side-link { transition: color 0.2s var(--ease), background 0.2s var(--ease), transform 0.2s var(--ease); }
 .tab:active { transform: scale(0.92); }
