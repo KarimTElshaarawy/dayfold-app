@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '../lib/api';
 import { useToast } from './Toast';
 import { APP_NAME } from '../lib/appInfo';
+import { copyText } from '../lib/clipboard';
 
 /** Shown while data that could not be read at launch is still parked on the device. Works before setup too. */
 export const UnreadableBanner = () => {
@@ -19,12 +20,7 @@ export const UnreadableBanner = () => {
     onSuccess: () => void qc.invalidateQueries(),
   });
   const copy = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(text ?? '');
-      toast('Copied. Paste it into Notes to keep it.');
-    } catch {
-      toast('Select the text and copy it.');
-    }
+    toast((await copyText(text ?? '')) ? 'Copied. Paste it into Notes to keep it.' : 'Select the text and copy it.');
   };
   const confirmDiscard = (): void => {
     if (window.confirm('Delete the saved data for good? Copy it first if you might need it.')) discard.mutate();

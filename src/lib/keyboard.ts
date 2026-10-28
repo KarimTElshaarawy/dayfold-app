@@ -14,12 +14,16 @@ export const syncKeyboard = (theme: ThemePref): void => {
   void Keyboard.setStyle({ style }).catch(() => undefined);
 };
 
-/** With the Done bar gone: Return closes the keyboard on single-line fields, and tapping outside a field closes it too. */
 /** Re-applies the look every time the keyboard opens, so the system cannot bring the bar back. */
 export const watchKeyboard = (getTheme: () => ThemePref): void => {
   if (Capacitor.getPlatform() !== 'ios') return;
   void Keyboard.addListener('keyboardWillShow', () => syncKeyboard(getTheme())).catch(() => undefined);
 };
+
+const NON_TEXT = ['checkbox', 'radio', 'file', 'color', 'range', 'button', 'submit', 'reset', 'image'];
+const isTextField = (el: Element | null): boolean => el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !NON_TEXT.includes(el.type));
+/** Anything a tap can act on. Tapping these must reach their click handler, so they never dismiss the keyboard on press. */
+const TAPPABLE = 'input, textarea, select, button, a, label, summary, [role="button"], [role="switch"], [role="checkbox"], [role="tab"]';
 
 export const installKeyboardDismissal = (): void => {
   document.addEventListener('keydown', (e) => {
@@ -31,12 +35,44 @@ export const installKeyboardDismissal = (): void => {
     }
     el.blur();
   });
+  // Tapping empty space closes the keyboard. Tapping a button does not: closing it on press resizes the screen
+  // under the finger, so the button moves away and the tap is lost (the copy and tab bar bugs).
   document.addEventListener('pointerdown', (e) => {
-    const active = document.activeElement;
-    if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement)) return;
+    if (!isTextField(document.activeElement) && !(document.activeElement instanceof HTMLSelectElement)) return;
     const target = e.target as Element | null;
-    if (!target?.closest('input, textarea, select, label')) active.blur();
+    if (!target?.closest(TAPPABLE)) (document.activeElement as HTMLElement).blur();
   });
+};
+
+/**
+ * Marks <html class="kb-open"> while the keyboard is up (a text field has focus or the system says the keyboard is showing),
+ * so the bottom tab bar can get out of the way instead of riding above the keyboard.
+ */
+export const watchKeyboardState = (): void => {
+  const root = document.documentElement;
+  let focused = false;
+  let shown = false;
+  const apply = (): void => {
+    root.classList.toggle('kb-open', focused || shown);
+  };
+  let timer: number | undefined;
+  document.addEventListener('focusin', (e) => {
+    window.clearTimeout(timer);
+    focused = isTextField(e.target as Element | null);
+    apply();
+  });
+  document.addEventListener('focusout', () => {
+    // a short delay so moving from one field to the next does not flash the tab bar
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      focused = isTextField(document.activeElement);
+      apply();
+    }, 80);
+  });
+  if (Capacitor.isNativePlatform()) {
+    void Keyboard.addListener('keyboardWillShow', () => { shown = true; apply(); }).catch(() => undefined);
+    void Keyboard.addListener('keyboardDidHide', () => { shown = false; focused = false; apply(); }).catch(() => undefined);
+  }
 };
 
 const tune = (el: Element): void => {

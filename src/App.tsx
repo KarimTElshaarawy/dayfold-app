@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './components/Shell';
-import { Skeleton } from './components/ui';
+import { Logo } from './components/Logo';
 import { useBoot } from './lib/query';
 import { NotFound } from './pages/NotFound';
 import { Today } from './pages/Today';
@@ -12,9 +12,10 @@ const Setup = lazy(() => import('./pages/Setup').then((m) => ({ default: m.Setup
 const Stats = lazy(() => import('./pages/Stats').then((m) => ({ default: m.Stats })));
 const Week = lazy(() => import('./pages/Week').then((m) => ({ default: m.Week })));
 
+/** The same spinning logo as the start-up screen in index.html, so loading never looks like a different screen. */
 const Splash = () => (
-  <div className="center-screen" aria-busy="true">
-    <Skeleton h={120} w={120} r={60} />
+  <div className="boot" role="status" aria-label="Loading">
+    <Logo size={76} className="boot-logo" />
   </div>
 );
 

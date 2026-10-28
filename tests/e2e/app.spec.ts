@@ -69,3 +69,34 @@ test('set up with demo data, tick a task, reload, then check every screen', asyn
   await page.getByRole('button', { name: 'Add 3' }).click();
   await expect(page.getByRole('button', { name: /^Gym/ })).toBeVisible();
 });
+
+test('with the keyboard up, buttons still work and the tab bar gets out of the way', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Backup and restore' }).click();
+
+  // a text field has focus: the tab bar is hidden so it cannot ride above the keyboard
+  const box = page.getByLabel('Backup data');
+  await box.click();
+  await expect(box).toBeFocused();
+  await expect(page.locator('html')).toHaveClass(/kb-open/);
+  await expect(page.locator('nav.tabbar')).toBeHidden();
+
+  // pressing a button must not dismiss the keyboard first (that moved the button and lost the tap): the copy happens
+  await page.getByRole('button', { name: 'Copy backup' }).click();
+  await expect(box).toHaveValue(/"v":1/);
+  await expect(page.getByText('Backup copied')).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/"v":1/);
+
+  // tapping empty space inside the sheet closes the keyboard and brings the tab bar back after the sheet closes
+  await page.getByRole('heading', { name: 'Backup and restore' }).click();
+  await expect(box).not.toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('nav.tabbar')).toBeVisible();
+});

@@ -12,7 +12,7 @@ import { getDevice, initDevice } from './device';
 import { applyTheme, getTheme } from './lib/hooks';
 import { queryClient } from './lib/query';
 import { applyAccent } from './lib/accent';
-import { installFieldDefaults, installKeyboardDismissal, syncKeyboard, watchKeyboard } from './lib/keyboard';
+import { installFieldDefaults, installKeyboardDismissal, syncKeyboard, watchKeyboard, watchKeyboardState } from './lib/keyboard';
 import { syncStatusBar, watchSystemTheme } from './lib/statusBar';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -24,6 +24,7 @@ syncStatusBar(getTheme());
 watchSystemTheme(getTheme);
 installKeyboardDismissal();
 installFieldDefaults();
+watchKeyboardState();
 watchKeyboard(getTheme);
 syncKeyboard(getTheme());
 
@@ -31,7 +32,9 @@ const root = createRoot(document.getElementById('root') as HTMLElement);
 
 const start = async (): Promise<void> => {
   try {
-    await initDevice();
+    // the spinning logo (drawn by index.html) shows for at least a moment, so it reads as a start-up and not a flash
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    await Promise.all([initDevice(), new Promise<void>((done) => window.setTimeout(done, reduced ? 0 : 900))]);
   } catch (error) {
     // never leave a blank screen: offer a way to see, copy or reset the stored data
     root.render(<StartupError error={error} />);

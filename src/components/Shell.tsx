@@ -1,4 +1,5 @@
 import { BarChart3, CalendarDays, CircleDot, GraduationCap, Settings as Cog } from 'lucide-react';
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
 import { APP_NAME } from '../lib/appInfo';
@@ -28,7 +29,10 @@ export const Shell = () => {
       </nav>
       <main className="main">
         <div className="page">
-          <Outlet />
+          {/* a page that is still loading shows a small spinning logo here, not a full-screen splash */}
+          <Suspense fallback={<div className="page-loading"><Logo size={40} className="boot-logo" /></div>}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
       <nav className="tabbar" aria-label="Main">

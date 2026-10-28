@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { WEEKDAYS } from '../lib/format';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
+import { copyText } from '../lib/clipboard';
 import { Seg } from './ui';
 
 export type BulkMode = 'commitments' | 'topics';
@@ -81,12 +82,7 @@ export const BulkImportSheet = ({ mode, open, onClose, hasPlaceholders = false }
   const copyTemplate = async (): Promise<void> => {
     setText(TEMPLATES[mode]);
     setPreview(null);
-    try {
-      await navigator.clipboard.writeText(TEMPLATES[mode]);
-      toast('Template copied and pasted below. Edit it, then Preview.');
-    } catch {
-      toast('Template pasted below. Edit it, then Preview.');
-    }
+    toast((await copyText(TEMPLATES[mode])) ? 'Template copied and pasted below. Edit it, then Preview.' : 'Template pasted below. Edit it, then Preview.');
   };
   return (
     <Sheet open={open} onClose={onClose} title={copy.title}>

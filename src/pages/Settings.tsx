@@ -10,6 +10,7 @@ import { WEEKDAYS } from '../lib/format';
 import { applyTheme, getTheme, type ThemePref } from '../lib/hooks';
 import { useBoot } from '../lib/query';
 import { ACCENT_PRESETS, applyAccent } from '../lib/accent';
+import { copyText } from '../lib/clipboard';
 import { BulkImportSheet, type BulkMode } from '../components/BulkImportSheet';
 import type { Boot, Commitment, Course, Settings as S } from '../lib/types';
 import { APP_NAME } from '../lib/appInfo';
@@ -145,12 +146,7 @@ const BackupSheet = ({ open, onClose }: { open: boolean; onClose: () => void }) 
     mutationFn: () => api<{ data: string }>('GET', '/api/backup'),
     onSuccess: async (r) => {
       setText(r.data);
-      try {
-        await navigator.clipboard.writeText(r.data);
-        toast('Backup copied. Paste it into Notes or a message to keep it.');
-      } catch {
-        toast('Select the text below and copy it.');
-      }
+      toast((await copyText(r.data)) ? 'Backup copied. Paste it into Notes or a message to keep it.' : 'Select the text below and copy it.');
     },
   });
   const unreadable = useMutation({
@@ -161,12 +157,7 @@ const BackupSheet = ({ open, onClose }: { open: boolean; onClose: () => void }) 
         return;
       }
       setText(r.data);
-      try {
-        await navigator.clipboard.writeText(r.data);
-        toast('Copied. Paste it into Notes to keep it.');
-      } catch {
-        toast('Select the text and copy it.');
-      }
+      toast((await copyText(r.data)) ? 'Copied. Paste it into Notes to keep it.' : 'Select the text and copy it.');
     },
   });
   const restore = useMutation({

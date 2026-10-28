@@ -2,6 +2,7 @@ import { Preferences } from '@capacitor/preferences';
 import { useState } from 'react';
 import { Logo } from './Logo';
 import { APP_NAME } from '../lib/appInfo';
+import { copyText } from '../lib/clipboard';
 
 const KEYS = ['dayfold-data-v1', 'dayfold-data-unreadable'];
 
@@ -15,12 +16,7 @@ export const StartupError = ({ error }: { error: unknown }) => {
     setRaw(main ?? kept ?? '(no stored data)');
   };
   const copy = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(raw ?? '');
-      setMessage('Copied. Paste it somewhere safe before resetting.');
-    } catch {
-      setMessage('Select the text and copy it.');
-    }
+    setMessage((await copyText(raw ?? '')) ? 'Copied. Paste it somewhere safe before resetting.' : 'Select the text and copy it.');
   };
   const reset = async (): Promise<void> => {
     if (!window.confirm(`Delete all ${APP_NAME} data on this device? Copy it first if you want to keep it.`)) return;

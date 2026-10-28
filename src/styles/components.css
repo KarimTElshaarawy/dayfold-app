@@ -115,3 +115,41 @@
 .empty p { max-width: 32ch; color: var(--ink-2); }
 .banner { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--accent-soft); color: var(--ink); font-size: 14px; }
 .banner svg { color: var(--accent-ink); flex: none; margin-top: 2px; }
+
+/* ---------- motion and polish ---------- */
+.page-loading { display: grid; place-items: center; min-height: 40vh; color: var(--ink-2); }
+/* pages rise in one block after another; sheets and toasts animate themselves */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation: rise 0.5s var(--ease) backwards; }
+.page > :nth-child(2) { animation-delay: 0.05s; }
+.page > :nth-child(3) { animation-delay: 0.1s; }
+.page > :nth-child(4) { animation-delay: 0.15s; }
+.page > :nth-child(5) { animation-delay: 0.2s; }
+.page > :nth-child(n + 6) { animation-delay: 0.25s; }
+@keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.tab, .side-link { transition: color 0.2s var(--ease), background 0.2s var(--ease), transform 0.2s var(--ease); }
+.tab:active { transform: scale(0.92); }
+.tab svg { transition: transform 0.3s var(--ease), color 0.2s; }
+.tab[aria-current='page'] svg { animation: pop 0.4s var(--ease); }
+.tab[aria-current='page']::after { content: ''; position: absolute; top: -7px; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--accent); animation: tab-bar-in 0.3s var(--ease); }
+@keyframes tab-bar-in { from { transform: scaleX(0); opacity: 0; } to { transform: none; opacity: 1; } }
+.card { transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease), border-color 0.25s; }
+a.card:active, button.card:active { transform: scale(0.985); }
+.list-row.link { transition: background 0.2s; }
+.list-row.link:active { background: var(--surface-3); }
+.seg button { transition: background 0.2s var(--ease), color 0.2s, box-shadow 0.2s; }
+.chip { transition: background 0.2s var(--ease), color 0.2s, transform 0.15s var(--ease); }
+.chip:active { transform: scale(0.94); }
+.swatch { transition: transform 0.2s var(--ease), box-shadow 0.2s; }
+.swatch:active { transform: scale(0.9); }
+.swatch[aria-pressed='true'] { transform: scale(1.1); }
+.scrim { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.check { transition: transform 0.2s var(--ease), background 0.2s, border-color 0.2s; }
+.check:active { transform: scale(0.88); }
+.check[aria-checked='true'] { animation: pop 0.35s var(--ease); }
+.tl-row { transition: opacity 0.3s var(--ease); }
+.tl-row.done { opacity: 0.7; }
+/* the keyboard is up: the tab bar gets out of the way (it would ride above the keyboard and eat taps) */
+html.kb-open .tabbar { display: none; }
+html.kb-open .toast { bottom: 16px; }
+html.kb-open .main { padding-bottom: var(--s6); }
