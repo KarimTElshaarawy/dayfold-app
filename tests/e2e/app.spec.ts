@@ -67,7 +67,7 @@ test('set up with demo data, tick a task, reload, then check every screen', asyn
   // accent color: choose blue, see the CSS variable change, keep it after a reload
   const strong = (): Promise<string> => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent-strong').trim());
   const red = await strong();
-  await page.getByRole('button', { name: 'Blue' }).click();
+  await page.locator('button.swatch[aria-label="Blue"]').click();
   await expect.poll(strong).not.toBe(red);
   const blue = await strong();
   await page.reload();
@@ -184,4 +184,36 @@ test('a renamed meal survives Add meal, and adding a topic keeps the keyboard on
   await expect(sheet.getByLabel('Topic', { exact: true }).last()).toHaveValue('Hash tables');
   await expect(topic).toBeFocused();
   await expect(topic).toHaveValue('');
+});
+
+test('a setting the app rejects is put back, and the chosen accent is kept across launches', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Settings' }).click();
+
+  // a 5 minute session is below the 20 minute minimum: the field goes back to what is really saved
+  const session = page.getByLabel('Session (min)');
+  const before = await session.inputValue();
+  await session.fill('5');
+  await page.getByRole('heading', { name: 'Your day' }).click();
+  await expect(session).toHaveValue(before);
+
+  // meals stop at six
+  for (let i = 0; i < 6; i++) {
+    const add = page.getByRole('button', { name: 'Add meal' });
+    if (await add.isDisabled()) break;
+    await add.click();
+  }
+  await expect(page.getByLabel('Meal name')).toHaveCount(6);
+  await expect(page.getByRole('button', { name: 'Add meal' })).toBeDisabled();
+
+  // the start-up screen reads the accent from storage, and nothing at launch may overwrite it
+  await page.locator('button.swatch[aria-label="Blue"]').click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('dayfold-accent'))).toBe('#2f7df6');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('dayfold-accent'))).toBe('#2f7df6');
 });

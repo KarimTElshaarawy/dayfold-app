@@ -21,6 +21,12 @@ export const StartupError = ({ error }: { error: unknown }) => {
   const reset = async (): Promise<void> => {
     if (!window.confirm(`Delete all ${APP_NAME} data on this device? Copy it first if you want to keep it.`)) return;
     for (const key of KEYS) await Preferences.remove({ key });
+    try {
+      localStorage.removeItem('dayfold-accent');
+      localStorage.removeItem('dayfold-theme');
+    } catch {
+      // storage unavailable
+    }
     window.location.reload();
   };
   return (

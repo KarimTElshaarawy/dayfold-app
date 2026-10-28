@@ -91,15 +91,26 @@ const isDarkNow = (): boolean => {
   return !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 };
 
-let current = '#e5322d';
+const storedAccent = (): string => {
+  try {
+    const v = localStorage.getItem('dayfold-accent');
+    return v && /^#[0-9a-f]{6}$/i.test(v) ? v : '#e5322d';
+  } catch {
+    return '#e5322d';
+  }
+};
+
+let current = storedAccent();
 
 /** Sets the accent custom properties on <html>. Call again whenever the theme or the system appearance changes. */
 export const applyAccent = (hex?: string): void => {
-  if (hex) current = hex;
-  try {
-    localStorage.setItem('dayfold-accent', current);
-  } catch {
-    // storage unavailable: the start-up logo just uses the default color
+  if (hex) {
+    current = hex;
+    try {
+      localStorage.setItem('dayfold-accent', hex);
+    } catch {
+      // storage unavailable: the start-up logo just uses the default color
+    }
   }
   const vars = accentVars(current, isDarkNow());
   for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);

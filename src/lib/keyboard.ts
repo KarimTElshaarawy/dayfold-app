@@ -35,7 +35,8 @@ export const installKeyboardDismissal = (): void => {
       e.preventDefault();
       el.form.requestSubmit();
     }
-    el.blur();
+    // a field marked data-keep-keyboard stays open after Enter (adding several topics in a row)
+    if (!el.hasAttribute('data-keep-keyboard')) el.blur();
   });
   // Tapping empty space closes the keyboard. Tapping a button must not close it on PRESS: that resizes the screen
   // under the finger, the button moves away and the tap is lost (the copy and tab bar bugs).
@@ -43,6 +44,10 @@ export const installKeyboardDismissal = (): void => {
     if (!isTextField(document.activeElement) && !(document.activeElement instanceof HTMLSelectElement)) return;
     const target = e.target as Element | null;
     if (!target?.closest(TAPPABLE)) (document.activeElement as HTMLElement).blur();
+  });
+  // On Android a tap on a button moves focus to it, which closes the keyboard: buttons marked data-keep-keyboard never take focus.
+  document.addEventListener('mousedown', (e) => {
+    if ((e.target as Element | null)?.closest('[data-keep-keyboard]')) e.preventDefault();
   });
   // A button on iOS does not take focus from the field, so the field would never "blur-save" (times, names) before the
   // button acts. Blur it in the capture phase of the click: this runs before React's handlers, so the typed value is

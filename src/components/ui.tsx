@@ -1,4 +1,4 @@
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { useEffect, useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 
 export const Field = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => (
   <label className={`field ${className}`}>
@@ -8,12 +8,15 @@ export const Field = ({ label, children, className = '' }: { label: string; chil
 );
 
 /** A caption over buttons, chips or swatches. Not a <label>: tapping a label's text activates the first control inside it. */
-export const FieldGroup = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => (
-  <div className={`field ${className}`} role="group" aria-label={label}>
-    <span>{label}</span>
-    {children}
-  </div>
-);
+export const FieldGroup = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => {
+  const id = useId();
+  return (
+    <div className={`field ${className}`} role="group" aria-labelledby={id}>
+      <span id={id}>{label}</span>
+      {children}
+    </div>
+  );
+};
 
 export const TextField = ({ label, className, ...p }: { label: string } & InputHTMLAttributes<HTMLInputElement>) => (
   <Field label={label} className={className}>

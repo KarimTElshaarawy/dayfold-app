@@ -19,7 +19,8 @@ export const usePatchSettings = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: Partial<S>) => api<S>('PUT', '/api/settings', patch),
-    onSuccess: () => void qc.invalidateQueries(),
+    // success or failure, re-read the real settings: a rejected value (too many meals, a short session) must not stay on screen
+    onSettled: () => void qc.invalidateQueries(),
   });
 };
 
@@ -126,7 +127,7 @@ const CourseSheet = ({ boot, course, open, onClose }: { boot: Boot; course: Cour
           <textarea className="textarea" style={{ minHeight: 88 }} aria-label="Several topics, one per line" placeholder={'Linked lists\nTrees and graphs\nSorting'} value={bulkTopics} onChange={(e) => setBulkTopics(e.target.value)} />
           <button className="btn secondary small" style={{ marginTop: 8 }} disabled={!bulkTopics.trim() || addMany.isPending} onClick={() => addMany.mutate()}>Add these topics</button>
           <form className="row" style={{ marginTop: 12 }} onSubmit={(e) => { e.preventDefault(); if (newTopic.trim() && !addTopic.isPending) addTopic.mutate(); }}>
-            <input ref={topicInput} className="input grow" style={{ height: 40 }} placeholder="Add a topic" aria-label="New topic" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} />
+            <input ref={topicInput} data-keep-keyboard className="input grow" style={{ height: 40 }} placeholder="Add a topic" aria-label="New topic" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} />
             <button className="btn secondary small" data-keep-keyboard disabled={!newTopic.trim() || addTopic.isPending}>Add</button>
           </form>
         </div>
@@ -190,6 +191,7 @@ export const Settings = () => {
   const qc = useQueryClient();
   const toast = useToast();
   const [theme, setTheme] = useState<ThemePref>(getTheme());
+  const [rev, setRev] = useState(0);
   const [commitment, setCommitment] = useState<Commitment | null>(null);
   const [cOpen, setCOpen] = useState(false);
   const [course, setCourse] = useState<Course | null>(null);
@@ -226,8 +228,10 @@ export const Settings = () => {
   const s = b.settings;
   // settings go into the cache at once, so a second save in the same tap (a blur-save, then Add or Remove) builds on the first
   const save = (p: Partial<S>): void => {
+    void qc.cancelQueries({ queryKey: ['boot'] });
     qc.setQueryData<Boot>(['boot'], (old) => (old ? { ...old, settings: { ...old.settings, ...p } } : old));
-    patch.mutate(p);
+    // a rejected value: re-mount the fields below so they show what is really saved (their typed text is local state)
+    patch.mutate(p, { onError: () => setRev((r) => r + 1) });
   };
   const curMeals = (): S['meals'] => qc.getQueryData<Boot>(['boot'])?.settings.meals ?? s.meals;
   const hours = (m: number): string => String(m / 60);
@@ -238,7 +242,7 @@ export const Settings = () => {
       {patch.error && <div className="banner" role="alert" style={{ marginBottom: 16 }}>{patch.error.message}</div>}
       <div className="stack">
         <div className="set-cols">
-          <section className="card stack">
+          <section key={`profile-${rev}`} className="card stack">
             <h2 className="t-head">Profile</h2>
             <Commit label="Name" value={s.name} onCommit={(v) => save({ name: v })} />
             <Field label="Timezone">
@@ -248,7 +252,7 @@ export const Settings = () => {
             </Field>
             <FieldGroup label="Appearance"><Seg label="Appearance" value={theme} onChange={(t) => { setTheme(t); applyTheme(t); }} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} /></FieldGroup>
             <FieldGroup label="Accent color">
-              <div className="color-swatches" role="group" aria-label="Accent color">
+              <div className="color-swatches">
                 {ACCENT_PRESETS.map((p) => (
                   <button key={p.id} className="swatch" style={{ background: p.hex }} aria-pressed={b.prefs.accent === p.hex} aria-label={p.name} onClick={() => pickAccent(p.hex)} />
                 ))}
@@ -262,7 +266,7 @@ export const Settings = () => {
               </div>
             </FieldGroup>
           </section>
-          <section className="card stack">
+          <section key={`day-${rev}`} className="card stack">
             <h2 className="t-head">Your day</h2>
             <div className="form-grid">
               <TimeField label="Wake up" value={s.wakeTime} onChange={(v) => save({ wakeTime: v })} />
@@ -275,7 +279,7 @@ export const Settings = () => {
           </section>
         </div>
 
-        <section className="card">
+        <section key={`commitments-${rev}`} className="card">
           <div className="row"><h2 className="t-head grow">Commitments</h2><button className="btn ghost small" onClick={() => setBulk('commitments')}>Import</button><button className="btn secondary small" onClick={() => { setCommitment(null); setCOpen(true); }}><Plus size={16} /> Add</button></div>
           {b.commitments.length === 0 ? <p className="t-cap" style={{ marginTop: 8 }}>Classes, shifts and training that {APP_NAME} plans around. Add them one by one, or tap Import to paste a whole timetable from a CSV or calendar file.</p> : (
             <div className="list" style={{ marginTop: 8 }}>
@@ -288,18 +292,18 @@ export const Settings = () => {
           )}
         </section>
 
-        <section className="card">
+        <section key={`meals-${rev}`} className="card">
           <h2 className="t-head">Meals</h2>
           <div className="list" style={{ marginTop: 8 }}>
             {s.meals.map((m, i) => (
-              <div key={i} className="list-row">
-                <input className="input grow" aria-label="Meal name" defaultValue={m.label} onBlur={(e) => e.target.value !== m.label && e.target.value.trim() && save({ meals: curMeals().map((x, j) => (j === i ? { ...x, label: e.target.value.trim() } : x)) })} />
+              <div key={`${i}-${m.label}-${m.time}`} className="list-row">
+                <input className="input grow" aria-label="Meal name" maxLength={30} defaultValue={m.label} onBlur={(e) => e.target.value !== m.label && e.target.value.trim() && save({ meals: curMeals().map((x, j) => (j === i ? { ...x, label: e.target.value.trim() } : x)) })} />
                 <input className="input tnum" style={{ width: 96 }} inputMode="numeric" maxLength={5} aria-label="Meal time" defaultValue={m.time} onBlur={(e) => { const t = /^([01]?\d|2[0-3]):?([0-5]\d)$/.exec(e.target.value.trim()); if (t) { const v = `${t[1]!.padStart(2, '0')}:${t[2]}`; e.target.value = v; if (v !== m.time) save({ meals: curMeals().map((x, j) => (j === i ? { ...x, time: v } : x)) }); } else e.target.value = m.time; }} />
                 <button className="btn ghost small icon" aria-label={`Remove ${m.label}`} onClick={() => save({ meals: curMeals().filter((_, j) => j !== i) })}><Trash2 size={16} /></button>
               </div>
             ))}
           </div>
-          <button className="btn secondary small" style={{ marginTop: 8 }} onClick={() => save({ meals: [...curMeals(), { label: 'Snack', time: '16:00', durationMin: 20 }] })}><Plus size={16} /> Add meal</button>
+          <button className="btn secondary small" style={{ marginTop: 8 }} disabled={s.meals.length >= 6} onClick={() => save({ meals: [...curMeals(), { label: 'Snack', time: '16:00', durationMin: 20 }] })}><Plus size={16} /> Add meal</button>
         </section>
 
         <section className="card">
