@@ -110,7 +110,7 @@ The planner in `shared/` is copied from the Dayfold web repo. Pull planner fixes
 
 ## What is not verified
 
-The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 45 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
+The cloud builds themselves (Xcode on the macOS runner, Gradle on the Linux runner) could not be run where this project was written: the sandbox had no macOS and could not reach Google's Android and Gradle downloads. Everything that can run without them was checked: type check, lint, 48 unit tests, a browser end-to-end test, the Capacitor config, `cap add ios` and `cap add android`, icon and splash generation, and the patch scripts against the generated projects. If a workflow step fails, open its log and send me the error.
 
 ## License
 

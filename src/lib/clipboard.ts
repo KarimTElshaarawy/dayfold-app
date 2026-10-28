@@ -3,6 +3,8 @@ import { Capacitor } from '@capacitor/core';
 
 /** The web view's own copy: works when the other ways are not allowed (no user gesture, no permission). */
 const legacyCopy = (text: string): boolean => {
+  // selecting the temporary box moves focus: put it back so a field being typed in (and its keyboard) is not lost
+  const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const area = document.createElement('textarea');
   area.value = text;
   area.setAttribute('readonly', '');
@@ -16,6 +18,7 @@ const legacyCopy = (text: string): boolean => {
     return false;
   } finally {
     area.remove();
+    before?.focus({ preventScroll: true });
   }
 };
 

@@ -2,6 +2,7 @@ import { AnimatePresence, m } from 'motion/react';
 import { X } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import { useEffect, useRef, type ReactNode } from 'react';
+import { isTextField } from '../lib/keyboard';
 
 interface Props {
   open: boolean;
@@ -42,7 +43,8 @@ export const Sheet = ({ open, title, onClose, children }: Props) => {
       window.removeEventListener('keydown', onKey);
       void back.then((h) => h.remove()).catch(() => undefined);
       document.body.style.overflow = prev;
-      opener?.focus?.();
+      // give focus back to a button or link, but never to a text field: that would reopen the keyboard
+      if (opener && !isTextField(opener)) opener.focus?.();
     };
   }, [open, onClose]);
   return (

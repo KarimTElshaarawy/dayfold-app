@@ -21,7 +21,9 @@ export const watchKeyboard = (getTheme: () => ThemePref): void => {
 };
 
 const NON_TEXT = ['checkbox', 'radio', 'file', 'color', 'range', 'button', 'submit', 'reset', 'image'];
-const isTextField = (el: Element | null): boolean => el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !NON_TEXT.includes(el.type));
+/** A field that opens the keyboard. Read-only and disabled fields do not, so they must not count. */
+export const isTextField = (el: Element | null): boolean =>
+  (el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !NON_TEXT.includes(el.type))) && !el.readOnly && !el.disabled;
 /** Anything a tap can act on. Tapping these must reach their click handler, so they never dismiss the keyboard on press. */
 const TAPPABLE = 'input, textarea, select, button, a, label, summary, [role="button"], [role="switch"], [role="checkbox"], [role="tab"]';
 
@@ -35,13 +37,27 @@ export const installKeyboardDismissal = (): void => {
     }
     el.blur();
   });
-  // Tapping empty space closes the keyboard. Tapping a button does not: closing it on press resizes the screen
-  // under the finger, so the button moves away and the tap is lost (the copy and tab bar bugs).
+  // Tapping empty space closes the keyboard. Tapping a button must not close it on PRESS: that resizes the screen
+  // under the finger, the button moves away and the tap is lost (the copy and tab bar bugs).
   document.addEventListener('pointerdown', (e) => {
     if (!isTextField(document.activeElement) && !(document.activeElement instanceof HTMLSelectElement)) return;
     const target = e.target as Element | null;
     if (!target?.closest(TAPPABLE)) (document.activeElement as HTMLElement).blur();
   });
+  // A button on iOS does not take focus from the field, so the field would never "blur-save" (times, names) before the
+  // button acts. Blur it in the capture phase of the click: this runs before React's handlers, so the typed value is
+  // committed first, and the keyboard closes only after the tap has landed.
+  document.addEventListener(
+    'click',
+    (e) => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !(isTextField(active) || active instanceof HTMLSelectElement)) return;
+      const target = e.target as Element | null;
+      const tapped = target?.closest(TAPPABLE);
+      if (tapped && !tapped.matches('input, textarea, select, label')) active.blur();
+    },
+    true,
+  );
 };
 
 /**

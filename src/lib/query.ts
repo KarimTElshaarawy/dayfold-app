@@ -1,4 +1,4 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../components/Toast';
 import { api } from './api';
 import { ApiError } from './errors';
@@ -13,11 +13,12 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const useBoot = () => useQuery({ queryKey: ['boot'], queryFn: () => api<Boot>('GET', '/api/bootstrap'), refetchInterval: 60_000 });
+export const bootQuery = { queryKey: ['boot'], queryFn: () => api<Boot>('GET', '/api/bootstrap') };
+export const useBoot = () => useQuery({ ...bootQuery, refetchInterval: 60_000 });
 export const useDay = (date: string | undefined) =>
   useQuery({ queryKey: ['plan', date], queryFn: () => api<DayView>('GET', `/api/plan/${date}`), enabled: !!date });
 export const useWeek = (start: string | null) =>
-  useQuery({ queryKey: ['week', start], queryFn: () => api<DayView[]>('GET', `/api/week?start=${start}`), enabled: !!start });
+  useQuery({ queryKey: ['week', start], queryFn: () => api<DayView[]>('GET', `/api/week?start=${start}`), enabled: !!start, placeholderData: keepPreviousData });
 export const useStats = () => useQuery({ queryKey: ['stats'], queryFn: () => api<Stats>('GET', '/api/stats') });
 
 const applyToggle = (day: DayView, id: string, done: boolean): DayView => {

@@ -120,12 +120,14 @@
 .page-loading { display: grid; place-items: center; min-height: 40vh; color: var(--ink-2); }
 /* pages rise in one block after another; sheets and toasts animate themselves */
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation: rise 0.5s var(--ease) backwards; }
-.page > :nth-child(2) { animation-delay: 0.05s; }
-.page > :nth-child(3) { animation-delay: 0.1s; }
-.page > :nth-child(4) { animation-delay: 0.15s; }
-.page > :nth-child(5) { animation-delay: 0.2s; }
-.page > :nth-child(n + 6) { animation-delay: 0.25s; }
+@media (prefers-reduced-motion: no-preference) {
+  .page > :not(.scrim):not(.sheet-wrap):not(.page-loading) { animation-name: rise; animation-duration: 0.5s; animation-timing-function: var(--ease); animation-fill-mode: backwards; }
+  .page > :nth-child(2) { animation-delay: 0.05s; }
+  .page > :nth-child(3) { animation-delay: 0.1s; }
+  .page > :nth-child(4) { animation-delay: 0.15s; }
+  .page > :nth-child(5) { animation-delay: 0.2s; }
+  .page > :nth-child(n + 6) { animation-delay: 0.25s; }
+}
 @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .tab, .side-link { transition: color 0.2s var(--ease), background 0.2s var(--ease), transform 0.2s var(--ease); }
 .tab:active { transform: scale(0.92); }
@@ -148,8 +150,8 @@ a.card:active, button.card:active { transform: scale(0.985); }
 .check:active { transform: scale(0.88); }
 .check[aria-checked='true'] { animation: pop 0.35s var(--ease); }
 .tl-row { transition: opacity 0.3s var(--ease); }
-.tl-row.done { opacity: 0.7; }
 /* the keyboard is up: the tab bar gets out of the way (it would ride above the keyboard and eat taps) */
-html.kb-open .tabbar { display: none; }
+/* hidden (not display:none) so its animations do not replay each time it comes back */
+.tabbar { transition: transform 0.25s var(--ease), opacity 0.2s; }
+html.kb-open .tabbar { transform: translateY(110%); opacity: 0; visibility: hidden; pointer-events: none; transition: transform 0.25s var(--ease), opacity 0.2s, visibility 0s 0.25s; }
 html.kb-open .toast { bottom: 16px; }
-html.kb-open .main { padding-bottom: var(--s6); }

@@ -14,7 +14,7 @@ const Week = lazy(() => import('./pages/Week').then((m) => ({ default: m.Week })
 
 /** The same spinning logo as the start-up screen in index.html, so loading never looks like a different screen. */
 const Splash = () => (
-  <div className="boot" role="status" aria-label="Loading">
+  <div className="boot again" role="status" aria-label="Loading">
     <Logo size={76} className="boot-logo" />
   </div>
 );

@@ -10,7 +10,7 @@ import { StartupError } from './components/StartupError';
 import { ToastProvider } from './components/Toast';
 import { getDevice, initDevice } from './device';
 import { applyTheme, getTheme } from './lib/hooks';
-import { queryClient } from './lib/query';
+import { bootQuery, queryClient } from './lib/query';
 import { applyAccent } from './lib/accent';
 import { installFieldDefaults, installKeyboardDismissal, syncKeyboard, watchKeyboard, watchKeyboardState } from './lib/keyboard';
 import { syncStatusBar, watchSystemTheme } from './lib/statusBar';
@@ -41,6 +41,8 @@ const start = async (): Promise<void> => {
     return;
   }
   applyAccent(getDevice().repo.getPrefs().accent);
+  // have the first screen's data ready, so the spinning logo hands over straight to the app (no second splash)
+  await queryClient.prefetchQuery(bootQuery);
   root.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>

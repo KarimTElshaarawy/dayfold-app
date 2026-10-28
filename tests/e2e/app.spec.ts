@@ -100,3 +100,46 @@ test('with the keyboard up, buttons still work and the tab bar gets out of the w
   await page.keyboard.press('Escape');
   await expect(page.locator('nav.tabbar')).toBeVisible();
 });
+
+/**
+ * A phone's keyboard, imitated: a tap on a button does not move focus out of a text field (iOS), and when a field
+ * loses focus the screen grows by a keyboard's height (native resize), which moves whatever the finger is on.
+ */
+const pretendPhoneKeyboard = (page: import('@playwright/test').Page) =>
+  page.addInitScript(() => {
+    document.addEventListener('mousedown', (e) => {
+      if ((e.target as Element).closest('button, a')) e.preventDefault();
+    }, true);
+    const isField = (el: EventTarget | null): boolean => (el instanceof HTMLInputElement && !['checkbox', 'radio'].includes(el.type)) || el instanceof HTMLTextAreaElement;
+    document.addEventListener('focusout', (e) => {
+      if (!isField(e.target) || document.querySelector('[data-kb-gap]')) return;
+      const gap = document.createElement('div');
+      gap.setAttribute('data-kb-gap', '');
+      gap.style.cssText = 'height:320px;pointer-events:none';
+      document.body.prepend(gap);
+    });
+    document.addEventListener('focusin', () => document.querySelector('[data-kb-gap]')?.remove());
+  });
+
+test('a typed time is kept when the next tap is a button, and a button tap is not lost to the keyboard closing', async ({ page }) => {
+  await pretendPhoneKeyboard(page);
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('heading', { name: 'Your day.' })).toBeVisible();
+  // typed, then straight to Continue: the value must be saved by that tap
+  await page.getByLabel('Wake up').fill('06:15');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('heading', { name: 'Morning plan.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Settings' }).click();
+  await expect(page.getByLabel('Wake up')).toHaveValue('06:15');
+
+  // the backup copy, with a text field focused, through the same phone keyboard
+  await page.getByRole('button', { name: 'Backup and restore' }).click();
+  await page.getByLabel('Backup data').click();
+  await page.getByRole('button', { name: 'Copy backup' }).click();
+  await expect(page.getByLabel('Backup data')).toHaveValue(/"v":1/);
+});
