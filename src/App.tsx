@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './components/Shell';
 import { Logo } from './components/Logo';
+import { StartupError } from './components/StartupError';
 import { useBoot } from './lib/query';
 import { NotFound } from './pages/NotFound';
 import { Today } from './pages/Today';
@@ -21,6 +22,7 @@ const Splash = () => (
 
 const Routed = () => {
   const boot = useBoot();
+  if (boot.isError && !boot.data) return <StartupError error={boot.error} />;
   if (!boot.data) return <Splash />;
   const done = boot.data.settings.setupDone;
   return (

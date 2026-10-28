@@ -82,11 +82,13 @@ export const Week = () => {
     setSel(today && mondayOf(today) === next ? today : next);
   };
   const courses = boot.data.courses;
+  // while the next week loads, the old one stays on screen: label it with the dates it really covers
+  const first = days[0]?.date ?? start;
   return (
     <>
       <header className="page-head">
         <div>
-          <div className="t-eyebrow">{fmtDate(start, { day: 'numeric', month: 'short' })} to {fmtDate(addDays(start, 6), { day: 'numeric', month: 'short' })}</div>
+          <div className="t-eyebrow">{fmtDate(first, { day: 'numeric', month: 'short' })} to {fmtDate(addDays(first, 6), { day: 'numeric', month: 'short' })}</div>
           <h1 className="t-title">Week</h1>
         </div>
         <div className="row" style={{ gap: 6 }}>

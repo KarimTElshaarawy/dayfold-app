@@ -96,6 +96,11 @@ let current = '#e5322d';
 /** Sets the accent custom properties on <html>. Call again whenever the theme or the system appearance changes. */
 export const applyAccent = (hex?: string): void => {
   if (hex) current = hex;
+  try {
+    localStorage.setItem('dayfold-accent', current);
+  } catch {
+    // storage unavailable: the start-up logo just uses the default color
+  }
   const vars = accentVars(current, isDarkNow());
   for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
 };

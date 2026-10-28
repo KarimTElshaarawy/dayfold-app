@@ -6,7 +6,7 @@ import { ExamSheet } from '../components/ExamSheet';
 import { ImportSheet } from '../components/ImportSheet';
 import { Logo } from '../components/Logo';
 import { UnreadableBanner } from '../components/UnreadableBanner';
-import { Field, SelectField, Skeleton, TextField, TimeField } from '../components/ui';
+import { FieldGroup, SelectField, Skeleton, TextField, TimeField } from '../components/ui';
 import { api } from '../lib/api';
 import { EXAM_KIND_LABEL, fmtDate } from '../lib/format';
 import { useBoot } from '../lib/query';
@@ -106,7 +106,7 @@ export const Setup = () => {
                   {b.exams.length === 0 && b.courses.length === 0 && <button className="btn secondary small" onClick={() => demo.mutate()}>Use demo data</button>}
                 </div>
                 {b.exams.length > 0 && (
-                  <Field label={`${b.exams.length} added`}>
+                  <FieldGroup label={`${b.exams.length} added`}>
                     <div className="card tight flat" style={{ maxHeight: 220, overflow: 'auto' }}>
                       <div className="list">
                         {b.exams.map((e) => (
@@ -114,7 +114,7 @@ export const Setup = () => {
                         ))}
                       </div>
                     </div>
-                  </Field>
+                  </FieldGroup>
                 )}
               </>
             )}

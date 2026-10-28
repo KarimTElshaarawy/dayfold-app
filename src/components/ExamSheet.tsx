@@ -5,7 +5,7 @@ import { EXAM_KIND_LABEL } from '../lib/format';
 import type { Boot, Exam } from '../lib/types';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
-import { Field, Seg, SelectField, TextField, TimeField } from './ui';
+import { FieldGroup, Seg, SelectField, TextField, TimeField } from './ui';
 
 const DEFAULTS = {
   quiz: { durationMin: 60, weight: 1 },
@@ -82,12 +82,12 @@ export const ExamSheet = ({ boot, exam, open, onClose }: { boot: Boot; exam: Exa
         className="stack"
         onSubmit={(e) => {
           e.preventDefault();
-          if (valid) save.mutate();
+          if (valid && !save.isPending) save.mutate();
         }}
       >
-        <Field label="Type">
+        <FieldGroup label="Type">
           <Seg label="Type" value={d.kind} onChange={pickKind} options={(['quiz', 'midterm', 'final', 'deadline'] as const).map((k) => [k, EXAM_KIND_LABEL[k] as string])} />
-        </Field>
+        </FieldGroup>
         <div className="form-grid">
           <SelectField label="Course" value={d.courseId} onChange={(e) => set('courseId', e.target.value)}>
             {boot.courses.map((c) => (
@@ -101,12 +101,12 @@ export const ExamSheet = ({ boot, exam, open, onClose }: { boot: Boot; exam: Exa
           <TimeField label={d.kind === 'deadline' ? 'Due time' : 'Start time'} value={d.time} onChange={(v) => set('time', v)} />
           {d.kind !== 'deadline' && <TextField label="Duration (min)" type="number" min={15} max={480} step={5} value={d.durationMin} onChange={(e) => set('durationMin', Number(e.target.value))} />}
         </div>
-        <Field label="Stakes">
+        <FieldGroup label="Stakes">
           <Seg label="Stakes" value={d.weight} onChange={(v) => set('weight', v)} options={[1, 2, 3, 4, 5].map((n) => [n, String(n)] as [number, string])} />
-        </Field>
-        <Field label="Confidence (1 shaky, 5 solid)">
+        </FieldGroup>
+        <FieldGroup label="Confidence (1 shaky, 5 solid)">
           <Seg label="Confidence" value={d.confidence} onChange={(v) => set('confidence', v)} options={[1, 2, 3, 4, 5].map((n) => [n, String(n)] as [number, string])} />
-        </Field>
+        </FieldGroup>
         {(save.error ?? del.error) && <div className="banner" role="alert">{(save.error ?? del.error)?.message}</div>}
         <div className="row" style={{ justifyContent: 'space-between' }}>
           {exam ? <button type="button" className="btn danger" onClick={() => del.mutate()}>Delete</button> : <span />}

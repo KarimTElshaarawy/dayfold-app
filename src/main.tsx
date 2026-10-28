@@ -35,14 +35,14 @@ const start = async (): Promise<void> => {
     // the spinning logo (drawn by index.html) shows for at least a moment, so it reads as a start-up and not a flash
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     await Promise.all([initDevice(), new Promise<void>((done) => window.setTimeout(done, reduced ? 0 : 900))]);
+    applyAccent(getDevice().repo.getPrefs().accent);
+    // have the first screen's data ready, so the spinning logo hands over straight to the app (no second splash)
+    await queryClient.fetchQuery(bootQuery);
   } catch (error) {
     // never leave a blank screen: offer a way to see, copy or reset the stored data
     root.render(<StartupError error={error} />);
     return;
   }
-  applyAccent(getDevice().repo.getPrefs().accent);
-  // have the first screen's data ready, so the spinning logo hands over straight to the app (no second splash)
-  await queryClient.prefetchQuery(bootQuery);
   root.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>

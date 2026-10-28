@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ImportSheet } from '../components/ImportSheet';
 import { Sheet } from '../components/Sheet';
 import { useToast } from '../components/Toast';
-import { Field, Seg, Skeleton, Switch, TextField, TimeField, cvar } from '../components/ui';
+import { Field, FieldGroup, Seg, Skeleton, Switch, TextField, TimeField, cvar } from '../components/ui';
 import { api } from '../lib/api';
 import { WEEKDAYS } from '../lib/format';
 import { applyTheme, getTheme, type ThemePref } from '../lib/hooks';
@@ -51,10 +51,10 @@ const CommitmentSheet = ({ item, open, onClose }: { item: Commitment | null; ope
   const del = useMutation({ mutationFn: () => api('DELETE', `/api/commitments/${item?.id}`), onSuccess: () => { void qc.invalidateQueries(); onClose(); } });
   return (
     <Sheet open={open} onClose={onClose} title={item ? 'Edit commitment' : 'Add commitment'}>
-      <form className="stack" onSubmit={(e) => { e.preventDefault(); if (d.label.trim() && d.days.length) save.mutate(); }}>
+      <form className="stack" onSubmit={(e) => { e.preventDefault(); if (d.label.trim() && d.days.length && !save.isPending) save.mutate(); }}>
         <TextField label="Name" value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="Lectures, shift, training" />
-        <Field label="Type"><Seg label="Type" value={d.kind} onChange={(kind) => setD({ ...d, kind })} options={[['class', 'Class'], ['work', 'Work'], ['training', 'Training'], ['other', 'Other']]} /></Field>
-        <Field label="Days">
+        <FieldGroup label="Type"><Seg label="Type" value={d.kind} onChange={(kind) => setD({ ...d, kind })} options={[['class', 'Class'], ['work', 'Work'], ['training', 'Training'], ['other', 'Other']]} /></FieldGroup>
+        <FieldGroup label="Days">
           <div className="chips" style={{ marginBottom: 8 }}>
             {([['Weekdays', [1, 2, 3, 4, 5]], ['Mon Wed', [1, 3]], ['Tue Thu', [2, 4]], ['Mon Wed Fri', [1, 3, 5]], ['Every day', [1, 2, 3, 4, 5, 6, 7]]] as Array<[string, number[]]>).map(([name, days]) => (
               <button type="button" key={name} className="chip" aria-pressed={d.days.join() === days.join()} onClick={() => setD({ ...d, days })}>{name}</button>
@@ -65,7 +65,7 @@ const CommitmentSheet = ({ item, open, onClose }: { item: Commitment | null; ope
               <button type="button" key={w} aria-pressed={d.days.includes(i + 1)} aria-label={w} onClick={() => setD({ ...d, days: d.days.includes(i + 1) ? d.days.filter((x) => x !== i + 1) : [...d.days, i + 1].sort() })}>{w[0]}</button>
             ))}
           </div>
-        </Field>
+        </FieldGroup>
         <div className="form-grid">
           <TimeField label="Starts" value={d.start} onChange={(v) => setD({ ...d, start: v })} />
           <TimeField label="Ends" value={d.end} onChange={(v) => setD({ ...d, end: v })} />
@@ -90,7 +90,8 @@ const CourseSheet = ({ boot, course, open, onClose }: { boot: Boot; course: Cour
   const refresh = (): void => void qc.invalidateQueries();
   const save = useMutation({ mutationFn: () => api('PUT', `/api/courses/${course?.id}`, { ...d, code: d.code.trim().toUpperCase() }), onSuccess: () => { refresh(); onClose(); } });
   const del = useMutation({ mutationFn: () => api('DELETE', `/api/courses/${course?.id}`), onSuccess: () => { refresh(); onClose(); } });
-  const addTopic = useMutation({ mutationFn: () => api('POST', '/api/topics', { courseId: course?.id, title: newTopic.trim() }), onSuccess: () => { setNewTopic(''); refresh(); } });
+  const topicInput = useRef<HTMLInputElement>(null);
+  const addTopic = useMutation({ mutationFn: () => api('POST', '/api/topics', { courseId: course?.id, title: newTopic.trim() }), onSuccess: () => { setNewTopic(''); refresh(); topicInput.current?.focus(); } });
   const addMany = useMutation({
     mutationFn: () => api('POST', '/api/import/topics/commit', { items: bulkTopics.split('\n').map((t) => t.trim()).filter(Boolean).map((topic) => ({ course: course?.code ?? '', topic })), replacePlaceholders: false }),
     onSuccess: () => { setBulkTopics(''); refresh(); },
@@ -104,13 +105,13 @@ const CourseSheet = ({ boot, course, open, onClose }: { boot: Boot; course: Cour
           <TextField label="Code" value={d.code} onChange={(e) => setD({ ...d, code: e.target.value })} />
           <TextField label="Name" value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} />
         </div>
-        <Field label="Color">
+        <FieldGroup label="Color">
           <div className="color-swatches">
             {Array.from({ length: 8 }, (_, i) => (
               <button key={i} className="swatch" style={{ background: cvar(i) }} aria-pressed={d.color === i} aria-label={`Color ${i + 1}`} onClick={() => setD({ ...d, color: i })} />
             ))}
           </div>
-        </Field>
+        </FieldGroup>
         <div>
           <div className="t-eyebrow" style={{ marginBottom: 8 }}>Topics</div>
           <div className="list">
@@ -124,9 +125,9 @@ const CourseSheet = ({ boot, course, open, onClose }: { boot: Boot; course: Cour
           <div className="t-cap" style={{ margin: '12px 0 6px' }}>Add several at once, one per line</div>
           <textarea className="textarea" style={{ minHeight: 88 }} aria-label="Several topics, one per line" placeholder={'Linked lists\nTrees and graphs\nSorting'} value={bulkTopics} onChange={(e) => setBulkTopics(e.target.value)} />
           <button className="btn secondary small" style={{ marginTop: 8 }} disabled={!bulkTopics.trim() || addMany.isPending} onClick={() => addMany.mutate()}>Add these topics</button>
-          <form className="row" style={{ marginTop: 12 }} onSubmit={(e) => { e.preventDefault(); if (newTopic.trim()) addTopic.mutate(); }}>
-            <input className="input grow" style={{ height: 40 }} placeholder="Add a topic" aria-label="New topic" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} />
-            <button className="btn secondary small" disabled={!newTopic.trim()}>Add</button>
+          <form className="row" style={{ marginTop: 12 }} onSubmit={(e) => { e.preventDefault(); if (newTopic.trim() && !addTopic.isPending) addTopic.mutate(); }}>
+            <input ref={topicInput} className="input grow" style={{ height: 40 }} placeholder="Add a topic" aria-label="New topic" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} />
+            <button className="btn secondary small" data-keep-keyboard disabled={!newTopic.trim() || addTopic.isPending}>Add</button>
           </form>
         </div>
         <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -223,7 +224,12 @@ export const Settings = () => {
   if (!boot.data) return <div className="stack"><Skeleton h={44} w={200} /><Skeleton h={300} r={28} /></div>;
   const b = boot.data;
   const s = b.settings;
-  const save = (p: Partial<S>): void => patch.mutate(p);
+  // settings go into the cache at once, so a second save in the same tap (a blur-save, then Add or Remove) builds on the first
+  const save = (p: Partial<S>): void => {
+    qc.setQueryData<Boot>(['boot'], (old) => (old ? { ...old, settings: { ...old.settings, ...p } } : old));
+    patch.mutate(p);
+  };
+  const curMeals = (): S['meals'] => qc.getQueryData<Boot>(['boot'])?.settings.meals ?? s.meals;
   const hours = (m: number): string => String(m / 60);
 
   return (
@@ -240,8 +246,8 @@ export const Settings = () => {
                 {(tzList.includes(s.timezone) ? tzList : [s.timezone, ...tzList]).map((z) => <option key={z}>{z}</option>)}
               </select>
             </Field>
-            <Field label="Appearance"><Seg label="Appearance" value={theme} onChange={(t) => { setTheme(t); applyTheme(t); }} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} /></Field>
-            <Field label="Accent color">
+            <FieldGroup label="Appearance"><Seg label="Appearance" value={theme} onChange={(t) => { setTheme(t); applyTheme(t); }} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} /></FieldGroup>
+            <FieldGroup label="Accent color">
               <div className="color-swatches" role="group" aria-label="Accent color">
                 {ACCENT_PRESETS.map((p) => (
                   <button key={p.id} className="swatch" style={{ background: p.hex }} aria-pressed={b.prefs.accent === p.hex} aria-label={p.name} onClick={() => pickAccent(p.hex)} />
@@ -254,7 +260,7 @@ export const Settings = () => {
                 <span className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>Preview</span>
                 <button className="btn small" style={{ background: 'var(--accent-strong)' }} tabIndex={-1} aria-hidden="true">Button</button>
               </div>
-            </Field>
+            </FieldGroup>
           </section>
           <section className="card stack">
             <h2 className="t-head">Your day</h2>
@@ -287,13 +293,13 @@ export const Settings = () => {
           <div className="list" style={{ marginTop: 8 }}>
             {s.meals.map((m, i) => (
               <div key={i} className="list-row">
-                <input className="input grow" aria-label="Meal name" defaultValue={m.label} onBlur={(e) => e.target.value !== m.label && e.target.value.trim() && save({ meals: s.meals.map((x, j) => (j === i ? { ...x, label: e.target.value.trim() } : x)) })} />
-                <input className="input tnum" style={{ width: 96 }} inputMode="numeric" maxLength={5} aria-label="Meal time" defaultValue={m.time} onBlur={(e) => { const t = /^([01]?\d|2[0-3]):?([0-5]\d)$/.exec(e.target.value.trim()); if (t) { const v = `${t[1]!.padStart(2, '0')}:${t[2]}`; e.target.value = v; if (v !== m.time) save({ meals: s.meals.map((x, j) => (j === i ? { ...x, time: v } : x)) }); } else e.target.value = m.time; }} />
-                <button className="btn ghost small icon" aria-label={`Remove ${m.label}`} onClick={() => save({ meals: s.meals.filter((_, j) => j !== i) })}><Trash2 size={16} /></button>
+                <input className="input grow" aria-label="Meal name" defaultValue={m.label} onBlur={(e) => e.target.value !== m.label && e.target.value.trim() && save({ meals: curMeals().map((x, j) => (j === i ? { ...x, label: e.target.value.trim() } : x)) })} />
+                <input className="input tnum" style={{ width: 96 }} inputMode="numeric" maxLength={5} aria-label="Meal time" defaultValue={m.time} onBlur={(e) => { const t = /^([01]?\d|2[0-3]):?([0-5]\d)$/.exec(e.target.value.trim()); if (t) { const v = `${t[1]!.padStart(2, '0')}:${t[2]}`; e.target.value = v; if (v !== m.time) save({ meals: curMeals().map((x, j) => (j === i ? { ...x, time: v } : x)) }); } else e.target.value = m.time; }} />
+                <button className="btn ghost small icon" aria-label={`Remove ${m.label}`} onClick={() => save({ meals: curMeals().filter((_, j) => j !== i) })}><Trash2 size={16} /></button>
               </div>
             ))}
           </div>
-          <button className="btn secondary small" style={{ marginTop: 8 }} onClick={() => save({ meals: [...s.meals, { label: 'Snack', time: '16:00', durationMin: 20 }] })}><Plus size={16} /> Add meal</button>
+          <button className="btn secondary small" style={{ marginTop: 8 }} onClick={() => save({ meals: [...curMeals(), { label: 'Snack', time: '16:00', durationMin: 20 }] })}><Plus size={16} /> Add meal</button>
         </section>
 
         <section className="card">
@@ -316,9 +322,9 @@ export const Settings = () => {
           {s.emailEnabled && <TimeField label="Morning plan arrives at" value={s.emailTime} onChange={(v) => save({ emailTime: v })} />}
           <div className="row"><span className="grow">When a study session starts</span><Switch label="Session reminders" checked={b.prefs.sessionReminders} onChange={(v) => prefsMut.mutate({ sessionReminders: v })} /></div>
           {b.prefs.sessionReminders && (
-            <Field label="Remind me">
+            <FieldGroup label="Remind me">
               <Seg label="Reminder lead time" value={b.prefs.sessionLeadMin} onChange={(v) => prefsMut.mutate({ sessionLeadMin: v })} options={[[0, 'At start'], [5, '5 min'], [10, '10 min'], [15, '15 min']]} />
-            </Field>
+            </FieldGroup>
           )}
           {b.notifications.permission === 'denied' && (
             <div className="banner" role="status"><Bell size={18} /><div>Notifications are blocked for {APP_NAME}. Turn them on in your phone&apos;s Settings.</div></div>

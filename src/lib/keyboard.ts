@@ -54,7 +54,7 @@ export const installKeyboardDismissal = (): void => {
       if (!(active instanceof HTMLElement) || !(isTextField(active) || active instanceof HTMLSelectElement)) return;
       const target = e.target as Element | null;
       const tapped = target?.closest(TAPPABLE);
-      if (tapped && !tapped.matches('input, textarea, select, label')) active.blur();
+      if (tapped && !tapped.matches('input, textarea, select, label') && !tapped.hasAttribute('data-keep-keyboard')) active.blur();
     },
     true,
   );

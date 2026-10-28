@@ -1,5 +1,23 @@
 import { expect, test } from '@playwright/test';
 
+// A fixed Monday morning, so the demo plan does not depend on when (or in which time zone) the tests run. Only the date
+// is shifted: timers and animation frames stay real (a fully fake clock froze the sheet animations).
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const RealDate = Date;
+    const offset = RealDate.parse('2026-10-26T09:00:00Z') - RealDate.now();
+    class ShiftedDate extends RealDate {
+      constructor(...args: unknown[]) {
+        super(...((args.length === 0 ? [RealDate.now() + offset] : args) as [number]));
+      }
+      static now(): number {
+        return RealDate.now() + offset;
+      }
+    }
+    window.Date = ShiftedDate as unknown as DateConstructor;
+  });
+});
+
 test('set up with demo data, tick a task, reload, then check every screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Who is studying?' })).toBeVisible();
@@ -142,4 +160,28 @@ test('a typed time is kept when the next tap is a button, and a button tap is no
   await page.getByLabel('Backup data').click();
   await page.getByRole('button', { name: 'Copy backup' }).click();
   await expect(page.getByLabel('Backup data')).toHaveValue(/"v":1/);
+});
+
+test('a renamed meal survives Add meal, and adding a topic keeps the keyboard on the topic field', async ({ page }) => {
+  await pretendPhoneKeyboard(page);
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Sam');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Use demo data' }).click();
+  await page.getByRole('button', { name: 'Start planning' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Settings' }).click();
+
+  await page.getByLabel('Meal name').first().fill('Brunch');
+  await page.getByRole('button', { name: 'Add meal' }).click();
+  await page.reload();
+  await expect(page.getByLabel('Meal name').first()).toHaveValue('Brunch');
+
+  await page.getByRole('button', { name: /CSC230/ }).first().click();
+  const topic = page.getByLabel('New topic');
+  await topic.fill('Hash tables');
+  const sheet = page.getByRole('dialog');
+  await sheet.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(sheet.getByLabel('Topic', { exact: true }).last()).toHaveValue('Hash tables');
+  await expect(topic).toBeFocused();
+  await expect(topic).toHaveValue('');
 });

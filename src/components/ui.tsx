@@ -7,6 +7,14 @@ export const Field = ({ label, children, className = '' }: { label: string; chil
   </label>
 );
 
+/** A caption over buttons, chips or swatches. Not a <label>: tapping a label's text activates the first control inside it. */
+export const FieldGroup = ({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) => (
+  <div className={`field ${className}`} role="group" aria-label={label}>
+    <span>{label}</span>
+    {children}
+  </div>
+);
+
 export const TextField = ({ label, className, ...p }: { label: string } & InputHTMLAttributes<HTMLInputElement>) => (
   <Field label={label} className={className}>
     <input className="input" {...p} />

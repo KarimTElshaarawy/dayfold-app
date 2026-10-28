@@ -13,13 +13,16 @@ interface Props {
 
 export const Sheet = ({ open, title, onClose, children }: Props) => {
   const ref = useRef<HTMLDivElement>(null);
+  // callers pass a new onClose on every render: keep it out of the effect's inputs, or every data refresh would re-run it and move focus
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!open) return;
     const opener = document.activeElement as HTMLElement | null;
     const focusables = (): HTMLElement[] => Array.from(ref.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? []).filter((el) => !el.hasAttribute('disabled'));
     window.setTimeout(() => (focusables().find((el) => el.tagName !== 'BUTTON') ?? focusables()[0])?.focus(), 60);
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') closeRef.current();
       if (e.key === 'Tab') {
         const list = focusables();
         const first = list[0];
@@ -36,7 +39,7 @@ export const Sheet = ({ open, title, onClose, children }: Props) => {
     };
     window.addEventListener('keydown', onKey);
     // Android hardware back closes the sheet instead of leaving the screen
-    const back = CapApp.addListener('backButton', () => onClose());
+    const back = CapApp.addListener('backButton', () => closeRef.current());
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -46,7 +49,7 @@ export const Sheet = ({ open, title, onClose, children }: Props) => {
       // give focus back to a button or link, but never to a text field: that would reopen the keyboard
       if (opener && !isTextField(opener)) opener.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   return (
     <AnimatePresence>
       {open && (
