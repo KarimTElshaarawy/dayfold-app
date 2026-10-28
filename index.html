@@ -35,7 +35,8 @@
       .boot-lines span:nth-child(4){animation-delay:calc(var(--boot-s)*.82);animation-duration:calc(var(--boot-s)*.2);animation-fill-mode:both}
       .boot-bar{position:relative;width:148px;height:3px;border-radius:3px;overflow:hidden;background:rgba(127,127,127,.2);animation:boot-rise calc(var(--boot-s)*.1) calc(var(--boot-s)*.12) cubic-bezier(.22,1,.36,1) both}
       .boot-bar::after{content:"";position:absolute;inset:0;border-radius:3px;background:var(--accent,#e5322d);transform-origin:left;transform:scaleX(0);animation:boot-fill calc(var(--boot-s)*.94) calc(var(--boot-s)*.04) cubic-bezier(.37,0,.63,1) forwards}
-      .boot-skip{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 34px);font:500 12px/1 'Inter Variable',Inter,system-ui,-apple-system,sans-serif;letter-spacing:.04em;text-transform:uppercase;opacity:0;animation:boot-hint .9s calc(var(--boot-s)*.15) ease-out forwards}
+      .boot-skip{background:none;border:0;color:inherit;padding:14px 22px;cursor:pointer;position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 34px);font:500 12px/1 'Inter Variable',Inter,system-ui,-apple-system,sans-serif;letter-spacing:.04em;text-transform:uppercase;opacity:0;animation:boot-hint .9s calc(var(--boot-s)*.15) ease-out forwards}
+      .boot-skip:focus-visible{outline:2px solid currentColor;border-radius:8px;opacity:.8}
       .boot.boot-out{animation:boot-out .5s cubic-bezier(.4,0,1,1) forwards}
       @keyframes boot-spin{to{transform:rotate(360deg)}}
       @keyframes boot-draw{to{stroke-dasharray:51.8 17.3}}
@@ -65,9 +66,10 @@
         <div class="boot-name">%APP_NAME%</div>
         <div class="boot-lines" aria-hidden="true"><span>Planning your day</span><span>Counting down to your exams</span><span>Finding your best hours</span><span>Almost ready</span></div>
         <div class="boot-bar"></div>
-        <div class="boot-skip" aria-hidden="true">Tap to skip</div>
+        <button class="boot-skip" type="button">Skip</button>
       </div>
     </div>
+    <script>(function(){var b=document.querySelector(".boot");if(b){var f=function(){window.__skipBoot=true};b.addEventListener("pointerdown",f,{once:true});b.addEventListener("click",f,{once:true})}})()</script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

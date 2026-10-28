@@ -39,10 +39,15 @@ const start = async (): Promise<void> => {
     const remaining = reduced ? 0 : Math.max(0, STARTUP_MS - performance.now());
     const playing = new Promise<void>((done) => {
       const timer = window.setTimeout(done, remaining);
-      document.querySelector('.boot')?.addEventListener('pointerdown', () => {
+      const skip = (): void => {
         window.clearTimeout(timer);
         done();
-      }, { once: true });
+      };
+      // a tap that came before this code loaded was noted by index.html; click covers VoiceOver and keyboard users
+      if ((window as unknown as { __skipBoot?: boolean }).__skipBoot) skip();
+      const boot = document.querySelector('.boot');
+      boot?.addEventListener('pointerdown', skip, { once: true });
+      boot?.addEventListener('click', skip, { once: true });
     });
     await Promise.all([initDevice(), playing, preloadPages().catch(() => undefined)]);
     applyAccent(getDevice().repo.getPrefs().accent);

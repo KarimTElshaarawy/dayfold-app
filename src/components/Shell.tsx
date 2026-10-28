@@ -1,5 +1,5 @@
 import { BarChart3, CalendarDays, CircleDot, GraduationCap, Settings as Cog } from 'lucide-react';
-import { Suspense, type CSSProperties } from 'react';
+import { Suspense, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
 import { APP_NAME } from '../lib/appInfo';
@@ -19,6 +19,22 @@ const PATHS = items.map((i) => i.to);
 export const Shell = () => {
   useSwipeTabs(PATHS);
   const { hover, handlers } = useTabScrub(PATHS);
+  const bar = useRef<HTMLElement>(null);
+  // the lens keeps the last tab it was over, so it fades out where it was instead of sweeping back to the first tab
+  const [lastHover, setLastHover] = useState(0);
+  useEffect(() => {
+    if (hover !== null) setLastHover(hover);
+  }, [hover]);
+  // A drag along the bar must not scroll or pan the page. This has to be a native non-passive listener (React's are passive).
+  useEffect(() => {
+    const nav = bar.current;
+    if (!nav) return;
+    const stopPan = (e: TouchEvent): void => {
+      if (e.cancelable) e.preventDefault();
+    };
+    nav.addEventListener('touchmove', stopPan, { passive: false });
+    return () => nav.removeEventListener('touchmove', stopPan);
+  }, []);
   return (
     <div className="shell">
       <nav className="sidebar" aria-label="Main">
@@ -41,7 +57,7 @@ export const Shell = () => {
           </Suspense>
         </div>
       </main>
-      <nav className={`tabbar${hover !== null ? ' scrubbing' : ''}`} aria-label="Main" data-no-swipe style={hover !== null ? ({ '--hover': hover } as CSSProperties) : undefined} {...handlers}>
+      <nav ref={bar} className={`tabbar${hover !== null ? ' scrubbing' : ''}`} aria-label="Main" data-no-swipe style={{ '--hover': hover ?? lastHover, '--tab-count': items.length } as CSSProperties} {...handlers}>
         {/* the lens and the bubble only show while a finger is sliding along the bar */}
         <span className="tab-lens" aria-hidden="true" />
         {hover !== null && <span className="tab-bubble" aria-hidden="true">{items[hover]?.label}</span>}

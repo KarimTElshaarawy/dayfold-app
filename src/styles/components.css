@@ -4,8 +4,8 @@
 .sidebar { display: none; }
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  display: grid; grid-template-columns: repeat(5, 1fr);
-  padding: 6px 8px calc(6px + var(--sab));
+  display: grid; grid-template-columns: repeat(var(--tab-count, 5), 1fr);
+  padding: 6px var(--tabbar-pad, 8px) calc(6px + var(--sab));
   background: var(--glass);
   -webkit-backdrop-filter: saturate(180%) blur(30px); backdrop-filter: saturate(180%) blur(30px);
   border-top: 1px solid var(--hairline);
@@ -160,10 +160,11 @@ html.kb-open .tabbar { transform: translateY(110%); opacity: 0; visibility: hidd
 html.kb-open .toast { bottom: 16px; }
 
 /* ---------- hold and slide along the tab bar ---------- */
-.tabbar { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* manipulation (not none): a drag along the bar is still ours (touchmove is cancelled in Shell.tsx), but taps are never lost after one */
+.tabbar { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .tab { -webkit-touch-callout: none; -webkit-user-drag: none; }
 .tab-lens {
-  position: absolute; top: 5px; bottom: calc(5px + var(--sab)); left: calc(8px + (100% - 16px) / 5 * var(--hover, 0)); width: calc((100% - 16px) / 5);
+  position: absolute; top: 5px; bottom: calc(5px + var(--sab)); left: calc(var(--tabbar-pad, 8px) + (100% - var(--tabbar-pad, 8px) * 2) / var(--tab-count, 5) * var(--hover, 0)); width: calc((100% - var(--tabbar-pad, 8px) * 2) / var(--tab-count, 5));
   border-radius: 18px; pointer-events: none; opacity: 0; transform: scale(0.7);
   background: linear-gradient(180deg, var(--accent-soft), transparent 140%), var(--surface-3);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12), inset 0 0 0 1px var(--hairline-strong);
@@ -171,7 +172,7 @@ html.kb-open .toast { bottom: 16px; }
 }
 .tabbar.scrubbing .tab-lens { opacity: 1; transform: scale(1); }
 .tab-bubble {
-  position: absolute; bottom: calc(100% + 10px); left: calc(8px + (100% - 16px) / 5 * (var(--hover, 0) + 0.5)); transform: translateX(-50%);
+  position: absolute; bottom: calc(100% + 10px); left: max(56px, min(calc(100% - 56px), calc(var(--tabbar-pad, 8px) + (100% - var(--tabbar-pad, 8px) * 2) / var(--tab-count, 5) * (var(--hover, 0) + 0.5)))); transform: translateX(-50%);
   padding: 7px 14px; border-radius: var(--r-pill); font-size: 13px; font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; pointer-events: none;
   background: var(--ink); color: var(--on-ink); box-shadow: var(--shadow-3);
   transition: left 0.34s var(--ease); animation: bubble-in 0.22s var(--ease);

@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import type { ExamX } from './types';
 
 export const fmtMin = (min: number): string => {
@@ -44,6 +46,11 @@ export const countdown = (e: Pick<ExamX, 'startMs' | 'endMs'>, nowMs: number): C
 
 export const buzz = (ms = 8): void => {
   try {
+    if (Capacitor.isNativePlatform()) {
+      // the phone's own haptic engine (iOS has no navigator.vibrate); a light tap for short buzzes, a firmer one for longer
+      void Haptics.impact({ style: ms > 10 ? ImpactStyle.Medium : ImpactStyle.Light }).catch(() => undefined);
+      return;
+    }
     navigator.vibrate?.(ms);
   } catch {
     // unsupported

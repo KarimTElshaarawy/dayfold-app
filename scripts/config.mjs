@@ -30,7 +30,8 @@ export const loadConfig = (root = process.cwd(), env = process.env) => {
     if (out[key] === undefined || out[key] === '') throw new Error(`app.config.json is missing "${key}"`);
   }
   // how long the start-up animation plays (tap skips it); 0 turns it off
-  out.startupSeconds = Number(env.DAYFOLD_STARTUP_SECONDS || out.startupSeconds || 0);
+  const startup = env.DAYFOLD_STARTUP_SECONDS;
+  out.startupSeconds = startup !== undefined && startup !== '' ? Number(startup) : (out.startupSeconds ?? 4);
   if (!(out.startupSeconds >= 0 && out.startupSeconds <= 30)) throw new Error(`Invalid startupSeconds: ${out.startupSeconds}`);
   if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(out.bundleId)) throw new Error(`Invalid bundleId: ${out.bundleId}`);
   if (!/^\d+(\.\d+){0,2}$/.test(String(out.version))) throw new Error(`Invalid version: ${out.version}`);

@@ -5,8 +5,6 @@ import { slideDirection } from './swipe';
 
 const HOLD_MS = 240;
 const DRAG_PX = 10;
-/** Must match the tab bar's horizontal padding in components.css (--tabbar-pad). */
-const PAD = 8;
 
 /**
  * Hold the tab bar (or just drag along it) and slide to the page you want: a lens follows your finger, the tab under it
@@ -21,8 +19,10 @@ export const useTabScrub = (paths: readonly string[]) => {
 
   const indexAt = (nav: HTMLElement, clientX: number): number => {
     const box = nav.getBoundingClientRect();
-    const column = (box.width - PAD * 2) / paths.length;
-    return Math.min(paths.length - 1, Math.max(0, Math.floor((clientX - box.left - PAD) / column)));
+    // the bar's own horizontal padding (--tabbar-pad in components.css), so the lens and the finger always agree
+    const pad = parseFloat(getComputedStyle(nav).paddingLeft) || 0;
+    const column = (box.width - pad * 2) / paths.length;
+    return Math.min(paths.length - 1, Math.max(0, Math.floor((clientX - box.left - pad) / column)));
   };
   const setHovered = (i: number | null): void => {
     if (hoverRef.current === i) return;
