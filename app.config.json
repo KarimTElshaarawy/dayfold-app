@@ -9,5 +9,5 @@
   "iconSource": "assets/source.png",
   "artifactBaseName": "Dayfold",
   "iconBackground": "#0b0b0c",
-  "startupSeconds": 10
+  "startupSeconds": 4
 }

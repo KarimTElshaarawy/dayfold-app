@@ -118,5 +118,5 @@ PolyForm Noncommercial License 1.0.0 (see `LICENSE`). Free for noncommercial use
 
 ## Start-up animation and navigation
 
-- The start-up animation plays for `startupSeconds` in `app.config.json` (default 10, `0` turns it off). Tap to skip it.
+- The start-up animation plays for `startupSeconds` in `app.config.json` (default 4, `0` turns it off). Tap to skip it.
 - Swipe left or right on a page to move between tabs. Hold the tab bar and slide to pick a page.
