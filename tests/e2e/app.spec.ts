@@ -201,11 +201,12 @@ test('a setting the app rejects is put back, and the chosen accent is kept acros
   await page.getByRole('heading', { name: 'Your day' }).click();
   await expect(session).toHaveValue(before);
 
-  // meals stop at six
-  for (let i = 0; i < 6; i++) {
-    const add = page.getByRole('button', { name: 'Add meal' });
-    if (await add.isDisabled()) break;
-    await add.click();
+  // meals stop at six: wait for each added row to show up before the next tap (a slow machine otherwise taps a button that just went disabled)
+  let rows = await page.getByLabel('Meal name').count();
+  while (rows < 6) {
+    await page.getByRole('button', { name: 'Add meal' }).click();
+    rows += 1;
+    await expect(page.getByLabel('Meal name')).toHaveCount(rows);
   }
   await expect(page.getByLabel('Meal name')).toHaveCount(6);
   await expect(page.getByRole('button', { name: 'Add meal' })).toBeDisabled();
