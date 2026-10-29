@@ -120,3 +120,7 @@ PolyForm Noncommercial License 1.0.0 (see `LICENSE`). Free for noncommercial use
 
 - The start-up animation plays for `startupSeconds` in `app.config.json` (default 4, `0` turns it off). Tap to skip it.
 - Swipe left or right on a page to move between tabs. Hold the tab bar and slide to pick a page.
+
+## Building
+
+Start a new build from the **Actions** tab: choose **Build apps**, press **Run workflow**, keep the branch on `main`. Do not use **Re-run jobs** on an old run: it rebuilds the old commit. The `.ipa` and `.apk` appear under the run's **Artifacts**.
